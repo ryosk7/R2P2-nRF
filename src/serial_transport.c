@@ -1,16 +1,12 @@
-// This file is part of the R2P2-nRF52 runtime.
-//
-// SPDX-License-Identifier: MIT
+#include "serial_transport.h"
 
+#include <stdarg.h>
 #include <string.h>
 
-#include "shared-module/usb_cdc/__init__.h"
-#include "supervisor/shared/cpu.h"
-#include "supervisor/shared/serial.h"
+#include "r2p2_config.h"
+#include "usb_cdc_transport.h"
 
-#if R2P2_TINYUSB && R2P2_USB_DEVICE
 #include "tusb.h"
-#endif
 
 static bool serial_console_write_disabled;
 
@@ -56,9 +52,6 @@ uint32_t serial_write_substring(const char *text, uint32_t length) {
     uint32_t written = 0;
     while (written < length) {
       written += tud_cdc_write(text + written, length - written);
-      if (cpu_interrupt_active()) {
-        break;
-      }
       tud_task();
       tud_cdc_write_flush();
     }
