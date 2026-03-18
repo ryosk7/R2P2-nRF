@@ -2,126 +2,159 @@
 
 #include <string.h>
 
+#include "app_usbd_cdc_acm.h"
+#include "app_util_platform.h"
 #include "r2p2_config.h"
-#include "r2p2_nrf52_usb.h"
 
-#include "tusb.h"
+extern app_usbd_cdc_acm_t const m_r2p2_console_cdc_acm;
+extern app_usbd_cdc_acm_t const m_r2p2_data_cdc_acm;
 
-#if CFG_TUD_CDC != 2
-#error CFG_TUD_CDC must be exactly 2
-#endif
+typedef struct {
+  bool connected;
+  bool rx_pending;
+  uint8_t ring[R2P2_USB_RING_BUFFER_SIZE];
+  size_t head;
+  size_t tail;
+  size_t count;
+  uint8_t staging[R2P2_USB_RX_BUFFER_SIZE];
+} cdc_channel_state_t;
 
-static const uint8_t usb_cdc_descriptor_template[] = {
-  0x08, 0x0B, 0xFF, 0x02, 0x02, 0x02, 0x00, 0x00,
-  0x09, 0x04, 0xFF, 0x00, 0x01, 0x02, 0x02, 0x00, 0xFF,
-  0x05, 0x24, 0x00, 0x10, 0x01,
-  0x05, 0x24, 0x01, 0x01, 0xFF,
-  0x04, 0x24, 0x02, 0x02,
-  0x05, 0x24, 0x06, 0xFF, 0xFF,
-  0x07, 0x05, 0xFF, 0x03, 0x40, 0x00, 0x10,
-  0x09, 0x04, 0xFF, 0x00, 0x02, 0x0A, 0x00, 0x00, 0x05,
-  0x07, 0x05, 0xFF, 0x02,
-#if R2P2_USB_DEVICE_HIGH_SPEED == 1
-  0x00, 0x02,
-#else
-  0x40, 0x00,
-#endif
-  0x00,
-  0x07, 0x05, 0xFF, 0x02,
-#if R2P2_USB_DEVICE_HIGH_SPEED == 1
-  0x00, 0x02,
-#else
-  0x40, 0x00,
-#endif
-  0x00,
-};
+static cdc_channel_state_t cdc_channels[2];
 
-enum {
-  CDC_FIRST_INTERFACE_INDEX = 2,
-  CDC_COMM_INTERFACE_INDEX = 10,
-  CDC_COMM_INTERFACE_STRING_INDEX = 16,
-  CDC_CALL_MANAGEMENT_DATA_INTERFACE_INDEX = 26,
-  CDC_UNION_MASTER_INTERFACE_INDEX = 34,
-  CDC_UNION_SLAVE_INTERFACE_INDEX = 35,
-  CDC_CONTROL_IN_ENDPOINT_INDEX = 38,
-  CDC_DATA_INTERFACE_INDEX = 45,
-  CDC_DATA_INTERFACE_STRING_INDEX = 51,
-  CDC_DATA_OUT_ENDPOINT_INDEX = 54,
-  CDC_DATA_IN_ENDPOINT_INDEX = 61,
-};
-
-static const char console_cdc_comm_interface_name[] = R2P2_USB_INTERFACE_NAME " CDC control";
-static const char data_cdc_comm_interface_name[] = R2P2_USB_INTERFACE_NAME " CDC2 control";
-static const char console_cdc_data_interface_name[] = R2P2_USB_INTERFACE_NAME " CDC data";
-static const char data_cdc_data_interface_name[] = R2P2_USB_INTERFACE_NAME " CDC2 data";
-
-static bool usb_cdc_console_is_enabled;
-static bool usb_cdc_data_is_enabled;
-static uint8_t usb_cdc_console_channel;
-static uint8_t usb_cdc_data_channel;
-
-void usb_cdc_set_defaults(void) {
-  usb_cdc_enable(R2P2_USB_CDC_CONSOLE_ENABLED_DEFAULT, R2P2_USB_CDC_DATA_ENABLED_DEFAULT);
+static app_usbd_cdc_acm_t const *channel_instance(r2p2_usb_channel_t channel) {
+  return channel == R2P2_USB_CHANNEL_CONSOLE ? &m_r2p2_console_cdc_acm : &m_r2p2_data_cdc_acm;
 }
 
-bool usb_cdc_console_enabled(void) { return usb_cdc_console_is_enabled; }
-bool usb_cdc_data_enabled(void) { return usb_cdc_data_is_enabled; }
-uint8_t usb_cdc_console_index(void) { return usb_cdc_console_channel; }
-uint8_t usb_cdc_data_index(void) { return usb_cdc_data_channel; }
-size_t usb_cdc_descriptor_length(void) { return sizeof(usb_cdc_descriptor_template); }
-
-size_t usb_cdc_add_descriptor(uint8_t *descriptor_buf, descriptor_counts_t *descriptor_counts,
-  uint8_t *current_interface_string, bool console) {
-  memcpy(descriptor_buf, usb_cdc_descriptor_template, sizeof(usb_cdc_descriptor_template));
-
-  descriptor_buf[CDC_FIRST_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_buf[CDC_COMM_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_buf[CDC_UNION_MASTER_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_counts->current_interface++;
-
-  descriptor_buf[CDC_CALL_MANAGEMENT_DATA_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_buf[CDC_UNION_SLAVE_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_buf[CDC_DATA_INTERFACE_INDEX] = descriptor_counts->current_interface;
-  descriptor_counts->current_interface++;
-
-  descriptor_buf[CDC_CONTROL_IN_ENDPOINT_INDEX] = console ? R2P2_USB_CDC0_EP_NOTIFICATION : R2P2_USB_CDC1_EP_NOTIFICATION;
-  descriptor_buf[CDC_DATA_OUT_ENDPOINT_INDEX] = console ? R2P2_USB_CDC0_EP_OUT : R2P2_USB_CDC1_EP_OUT;
-  descriptor_buf[CDC_DATA_IN_ENDPOINT_INDEX] = console ? R2P2_USB_CDC0_EP_IN : R2P2_USB_CDC1_EP_IN;
-  descriptor_counts->num_in_endpoints += 2;
-  descriptor_counts->num_out_endpoints += 1;
-
-  r2p2_usb_add_interface_string(*current_interface_string,
-    console ? console_cdc_comm_interface_name : data_cdc_comm_interface_name);
-  descriptor_buf[CDC_COMM_INTERFACE_STRING_INDEX] = *current_interface_string;
-  (*current_interface_string)++;
-
-  r2p2_usb_add_interface_string(*current_interface_string,
-    console ? console_cdc_data_interface_name : data_cdc_data_interface_name);
-  descriptor_buf[CDC_DATA_INTERFACE_STRING_INDEX] = *current_interface_string;
-  (*current_interface_string)++;
-
-  return sizeof(usb_cdc_descriptor_template);
+static cdc_channel_state_t *channel_state(r2p2_usb_channel_t channel) {
+  return &cdc_channels[(size_t)channel];
 }
 
-bool usb_cdc_disable(void) {
-  return usb_cdc_enable(false, false);
+static void ring_reset(cdc_channel_state_t *state) {
+  state->head = 0;
+  state->tail = 0;
+  state->count = 0;
 }
 
-bool usb_cdc_enable(bool console, bool data) {
-  if (tud_connected()) {
-    return false;
+static void ring_push_byte(cdc_channel_state_t *state, uint8_t value) {
+  if (state->count == R2P2_USB_RING_BUFFER_SIZE) {
+    state->tail = (state->tail + 1) % R2P2_USB_RING_BUFFER_SIZE;
+    state->count--;
   }
 
-  uint8_t idx = 0;
-  usb_cdc_console_is_enabled = console;
-  if (console) {
-    usb_cdc_console_channel = idx++;
+  state->ring[state->head] = value;
+  state->head = (state->head + 1) % R2P2_USB_RING_BUFFER_SIZE;
+  state->count++;
+}
+
+static int ring_pop_byte(cdc_channel_state_t *state) {
+  uint8_t value;
+
+  if (state->count == 0) {
+    return -1;
   }
 
-  usb_cdc_data_is_enabled = data;
-  if (data) {
-    usb_cdc_data_channel = idx;
+  value = state->ring[state->tail];
+  state->tail = (state->tail + 1) % R2P2_USB_RING_BUFFER_SIZE;
+  state->count--;
+  return value;
+}
+
+static void consume_completed_read(r2p2_usb_channel_t channel) {
+  app_usbd_cdc_acm_t const *instance = channel_instance(channel);
+  cdc_channel_state_t *state = channel_state(channel);
+  size_t received = app_usbd_cdc_acm_rx_size(instance);
+
+  for (size_t i = 0; i < received; i++) {
+    ring_push_byte(state, state->staging[i]);
+  }
+}
+
+static void schedule_read(r2p2_usb_channel_t channel) {
+  app_usbd_cdc_acm_t const *instance = channel_instance(channel);
+  cdc_channel_state_t *state = channel_state(channel);
+  ret_code_t ret;
+
+  if (!state->connected || state->rx_pending) {
+    return;
   }
 
-  return true;
+  while (true) {
+    ret = app_usbd_cdc_acm_read_any(instance, state->staging, sizeof(state->staging));
+    if (ret == NRF_ERROR_IO_PENDING) {
+      state->rx_pending = true;
+      return;
+    }
+    if (ret != NRF_SUCCESS) {
+      return;
+    }
+    consume_completed_read(channel);
+  }
+}
+
+void usb_cdc_transport_init(void) {
+  memset(cdc_channels, 0, sizeof(cdc_channels));
+}
+
+app_usbd_class_inst_t const *usb_cdc_transport_console_class(void) {
+  return app_usbd_cdc_acm_class_inst_get(&m_r2p2_console_cdc_acm);
+}
+
+app_usbd_class_inst_t const *usb_cdc_transport_data_class(void) {
+  return app_usbd_cdc_acm_class_inst_get(&m_r2p2_data_cdc_acm);
+}
+
+void usb_cdc_transport_on_port_open(r2p2_usb_channel_t channel) {
+  cdc_channel_state_t *state = channel_state(channel);
+
+  state->connected = true;
+  state->rx_pending = false;
+  schedule_read(channel);
+}
+
+void usb_cdc_transport_on_port_close(r2p2_usb_channel_t channel) {
+  cdc_channel_state_t *state = channel_state(channel);
+
+  state->connected = false;
+  state->rx_pending = false;
+  ring_reset(state);
+}
+
+void usb_cdc_transport_on_rx_done(r2p2_usb_channel_t channel) {
+  cdc_channel_state_t *state = channel_state(channel);
+
+  state->rx_pending = false;
+  consume_completed_read(channel);
+  schedule_read(channel);
+}
+
+void usb_cdc_transport_on_tx_done(r2p2_usb_channel_t channel) {
+  (void)channel;
+}
+
+bool usb_cdc_transport_channel_connected(r2p2_usb_channel_t channel) {
+  return channel_state(channel)->connected;
+}
+
+bool usb_cdc_transport_any_connected(void) {
+  return usb_cdc_transport_channel_connected(R2P2_USB_CHANNEL_CONSOLE) ||
+    usb_cdc_transport_channel_connected(R2P2_USB_CHANNEL_DATA);
+}
+
+size_t usb_cdc_transport_write(r2p2_usb_channel_t channel, const uint8_t *data, size_t length) {
+  ret_code_t ret;
+
+  if (!usb_cdc_transport_channel_connected(channel)) {
+    return 0;
+  }
+
+  ret = app_usbd_cdc_acm_write(channel_instance(channel), data, length);
+  return ret == NRF_SUCCESS ? length : 0;
+}
+
+size_t usb_cdc_transport_bytes_available(r2p2_usb_channel_t channel) {
+  return channel_state(channel)->count;
+}
+
+int usb_cdc_transport_read(r2p2_usb_channel_t channel) {
+  return ring_pop_byte(channel_state(channel));
 }

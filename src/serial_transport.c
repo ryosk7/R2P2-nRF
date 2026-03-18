@@ -3,10 +3,8 @@
 #include <stdarg.h>
 #include <string.h>
 
-#include "r2p2_config.h"
+#include "r2p2_nrf52_usb.h"
 #include "usb_cdc_transport.h"
-
-#include "tusb.h"
 
 static bool serial_console_write_disabled;
 
@@ -17,29 +15,19 @@ void serial_init(void) {
 }
 
 bool serial_connected(void) {
-#if R2P2_TINYUSB && R2P2_USB_DEVICE && R2P2_USB_CDC
-  return usb_cdc_console_enabled() && tud_cdc_connected();
-#else
-  return false;
-#endif
+  return usb_cdc_transport_channel_connected(R2P2_USB_CHANNEL_CONSOLE);
 }
 
 char serial_read(void) {
-#if R2P2_TINYUSB && R2P2_USB_DEVICE && R2P2_USB_CDC
-  if (usb_cdc_console_enabled() && tud_cdc_connected() && tud_cdc_available() > 0) {
-    return (char)tud_cdc_read_char();
+  int value = usb_cdc_transport_read(R2P2_USB_CHANNEL_CONSOLE);
+  if (value >= 0) {
+    return (char)value;
   }
-#endif
   return -1;
 }
 
 uint32_t serial_bytes_available(void) {
-#if R2P2_TINYUSB && R2P2_USB_DEVICE && R2P2_USB_CDC
-  if (usb_cdc_console_enabled() && tud_cdc_connected()) {
-    return tud_cdc_available();
-  }
-#endif
-  return 0;
+  return (uint32_t)usb_cdc_transport_bytes_available(R2P2_USB_CHANNEL_CONSOLE);
 }
 
 uint32_t serial_write_substring(const char *text, uint32_t length) {
@@ -47,17 +35,7 @@ uint32_t serial_write_substring(const char *text, uint32_t length) {
     return length;
   }
 
-#if R2P2_TINYUSB && R2P2_USB_DEVICE && R2P2_USB_CDC
-  if (usb_cdc_console_enabled() && tud_cdc_connected()) {
-    uint32_t written = 0;
-    while (written < length) {
-      written += tud_cdc_write(text + written, length - written);
-      tud_task();
-      tud_cdc_write_flush();
-    }
-  }
-#endif
-  return length;
+  return (uint32_t)usb_cdc_transport_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)text, length);
 }
 
 void serial_write(const char *text) {

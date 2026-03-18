@@ -5,26 +5,21 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct {
-  uint8_t current_interface;
-  uint8_t current_endpoint;
-  uint8_t num_in_endpoints;
-  uint8_t num_out_endpoints;
-} descriptor_counts_t;
+#include "app_usbd.h"
+#include "app_usbd_cdc_acm.h"
+#include "r2p2_nrf52_usb.h"
 
-void usb_cdc_set_defaults(void);
-bool usb_cdc_enable(bool console, bool data);
-bool usb_cdc_disable(void);
-
-bool usb_cdc_console_enabled(void);
-bool usb_cdc_data_enabled(void);
-uint8_t usb_cdc_console_index(void);
-uint8_t usb_cdc_data_index(void);
-
-size_t usb_cdc_descriptor_length(void);
-size_t usb_cdc_add_descriptor(uint8_t *descriptor_buf,
-  descriptor_counts_t *descriptor_counts,
-  uint8_t *current_interface_string,
-  bool console);
+void usb_cdc_transport_init(void);
+app_usbd_class_inst_t const *usb_cdc_transport_console_class(void);
+app_usbd_class_inst_t const *usb_cdc_transport_data_class(void);
+void usb_cdc_transport_on_port_open(r2p2_usb_channel_t channel);
+void usb_cdc_transport_on_port_close(r2p2_usb_channel_t channel);
+void usb_cdc_transport_on_rx_done(r2p2_usb_channel_t channel);
+void usb_cdc_transport_on_tx_done(r2p2_usb_channel_t channel);
+bool usb_cdc_transport_channel_connected(r2p2_usb_channel_t channel);
+bool usb_cdc_transport_any_connected(void);
+size_t usb_cdc_transport_write(r2p2_usb_channel_t channel, const uint8_t *data, size_t length);
+size_t usb_cdc_transport_bytes_available(r2p2_usb_channel_t channel);
+int usb_cdc_transport_read(r2p2_usb_channel_t channel);
 
 #endif
