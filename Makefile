@@ -7,6 +7,7 @@ INCLUDE_DIR := $(ROOT)/include
 BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
 PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
+PICORUBY_NRF52_ROOT ?= $(abspath $(ROOT)/../picoruby-nRF52)
 UF2CONV := $(ROOT)/tools/uf2conv.py
 GNU_PREFIX ?= arm-none-eabi
 empty :=
@@ -16,8 +17,7 @@ CC := $(GNU_PREFIX)-gcc
 OBJCOPY := $(GNU_PREFIX)-objcopy
 SIZE := $(GNU_PREFIX)-size
 
-PICORUBY_NRF52_ROOT := $(PICORUBY_NRF52_DIR)
-include $(PICORUBY_NRF52_DIR)/build_config/nrf52-sdk.mk
+include $(PICORUBY_NRF52_ROOT)/build_config/nrf52-sdk.mk
 include $(BUILD_CONFIG_DIR)/$(BOARD).mk
 
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -171,7 +171,7 @@ DEPS := $(OBJECTS:.o=.d)
 build-cdc-dual: $(FIRMWARE_UF2)
 
 ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
-$(error nRF5 SDK not found at $(SDK_ROOT). Sync components/picoruby-nRF52 and place $(NRF5_SDK_VERSION) under picoruby-nRF52/nrf52/sdk/)
+$(error nRF5 SDK not found at $(SDK_ROOT). Place $(NRF5_SDK_VERSION) under $(PICORUBY_NRF52_ROOT)/nrf52/sdk/)
 endif
 
 ifeq ($(wildcard $(UF2CONV)),)
