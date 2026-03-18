@@ -1,0 +1,3 @@
+[submodule "components/picoruby-nRF52"]
+	path = components/picoruby-nRF52
+	url = git@github.com:ryosk7/picoruby-nRF52.git

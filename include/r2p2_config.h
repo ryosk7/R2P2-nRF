@@ -1,0 +1,76 @@
+#ifndef R2P2_CONFIG_H
+#define R2P2_CONFIG_H
+
+#ifndef R2P2_USB_DEVICE
+#define R2P2_USB_DEVICE 1
+#endif
+
+#ifndef R2P2_USB_CDC
+#define R2P2_USB_CDC 1
+#endif
+
+#ifndef R2P2_USB_CDC_CONSOLE_ENABLED_DEFAULT
+#define R2P2_USB_CDC_CONSOLE_ENABLED_DEFAULT 1
+#endif
+
+#ifndef R2P2_USB_CDC_DATA_ENABLED_DEFAULT
+#define R2P2_USB_CDC_DATA_ENABLED_DEFAULT 1
+#endif
+
+#ifndef R2P2_USB_MSC
+#define R2P2_USB_MSC 0
+#endif
+
+#ifndef R2P2_USB_HID
+#define R2P2_USB_HID 0
+#endif
+
+#ifndef R2P2_USB_MIDI
+#define R2P2_USB_MIDI 0
+#endif
+
+#ifndef R2P2_DEBUG_TINYUSB
+#define R2P2_DEBUG_TINYUSB 0
+#endif
+
+#ifndef R2P2_USB_VENDOR_ID
+#define R2P2_USB_VENDOR_ID 0x16c0
+#endif
+
+#ifndef R2P2_USB_PRODUCT_ID
+#define R2P2_USB_PRODUCT_ID 0x27dd
+#endif
+
+#ifndef R2P2_USB_MANUFACTURER
+#define R2P2_USB_MANUFACTURER "R2P2"
+#endif
+
+#ifndef R2P2_USB_PRODUCT
+#define R2P2_USB_PRODUCT "R2P2 nRF52"
+#endif
+
+#ifndef R2P2_USB_INTERFACE_NAME
+#define R2P2_USB_INTERFACE_NAME "R2P2"
+#endif
+
+#ifndef R2P2_USB_CONFIGURATION
+#define R2P2_USB_CONFIGURATION "Default configuration"
+#endif
+
+#ifndef R2P2_USB_MAX_POWER_MA
+#define R2P2_USB_MAX_POWER_MA 100
+#endif
+
+#ifndef R2P2_USB_SELF_POWERED
+#define R2P2_USB_SELF_POWERED 1
+#endif
+
+#ifndef R2P2_USB_RX_BUFFER_SIZE
+#define R2P2_USB_RX_BUFFER_SIZE 64
+#endif
+
+#ifndef R2P2_USB_RING_BUFFER_SIZE
+#define R2P2_USB_RING_BUFFER_SIZE 512
+#endif
+
+#endif
