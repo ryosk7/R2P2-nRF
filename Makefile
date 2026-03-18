@@ -7,8 +7,7 @@ INCLUDE_DIR := $(ROOT)/include
 BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
 PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
-SDK_ROOT := $(abspath $(ROOT)/../picoruby-nRF52/tmp/nrf52/sdk/nRF5_SDK_17.1.0_ddde560)
-UF2CONV := /tmp/uf2conv.py
+UF2CONV := $(ROOT)/tools/uf2conv.py
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
@@ -17,6 +16,8 @@ CC := $(GNU_PREFIX)-gcc
 OBJCOPY := $(GNU_PREFIX)-objcopy
 SIZE := $(GNU_PREFIX)-size
 
+PICORUBY_NRF52_ROOT := $(PICORUBY_NRF52_DIR)
+include $(PICORUBY_NRF52_DIR)/build_config/nrf52-sdk.mk
 include $(BUILD_CONFIG_DIR)/$(BOARD).mk
 
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -24,9 +25,10 @@ FIRMWARE_OUT := $(BUILD_DIR)/firmware.out
 FIRMWARE_HEX := $(BUILD_DIR)/firmware.hex
 FIRMWARE_BIN := $(BUILD_DIR)/firmware.bin
 FIRMWARE_UF2 := $(BUILD_DIR)/firmware.uf2
-LINKER_SCRIPT := $(PICORUBY_NRF52_DIR)/linker/nrf52840.ld
-SDK_CONFIG_DIR := $(PICORUBY_NRF52_DIR)/config
-STARTUP_SRC := $(PICORUBY_NRF52_DIR)/ports/nrf52/startup_nrf52840.c
+SDK_ROOT := $(NRF5_SDK_ROOT)
+LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
+SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
+STARTUP_SRC := $(NRF52_STARTUP_SRC)
 
 SRC_FILES := \
 	$(SRC_DIR)/main.c \
@@ -167,6 +169,14 @@ DEPS := $(OBJECTS:.o=.d)
 .PHONY: build-cdc-dual clean
 
 build-cdc-dual: $(FIRMWARE_UF2)
+
+ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
+$(error nRF5 SDK not found at $(SDK_ROOT). Sync components/picoruby-nRF52 and place $(NRF5_SDK_VERSION) under picoruby-nRF52/nrf52/sdk/)
+endif
+
+ifeq ($(wildcard $(UF2CONV)),)
+$(error UF2 conversion tool not found at $(UF2CONV))
+endif
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
