@@ -8,7 +8,6 @@ BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
 PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
 PICORUBY_NRF52_ROOT ?= $(abspath $(ROOT)/../picoruby-nRF52)
-UF2CONV := $(ROOT)/tools/uf2conv.py
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
@@ -174,9 +173,7 @@ ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
 $(error nRF5 SDK not found at $(SDK_ROOT). Place $(NRF5_SDK_VERSION) under $(PICORUBY_NRF52_ROOT)/nrf52/sdk/)
 endif
 
-ifeq ($(wildcard $(UF2CONV)),)
-$(error UF2 conversion tool not found at $(UF2CONV))
-endif
+
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
@@ -202,7 +199,7 @@ $(FIRMWARE_BIN): $(FIRMWARE_OUT)
 	$(OBJCOPY) -O binary $< $@
 
 $(FIRMWARE_UF2): $(FIRMWARE_HEX)
-	python3 $(UF2CONV) -c -f $(R2P2_UF2_FAMILY) -o $@ $<
+	ruby $(ROOT)/tools/uf2conv.rb -c -f $(R2P2_UF2_FAMILY) -o $@ $<
 
 clean:
 	rm -rf $(BUILD_DIR)
