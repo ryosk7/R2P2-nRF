@@ -202,7 +202,14 @@ endef
 
 $(foreach src,$(SRC_FILES),$(eval $(call compile_rule,$(src))))
 
-$(FIRMWARE_OUT): $(OBJECTS) | $(BUILD_DIR)
+# Build PicoRuby components first
+$(MAIN_TASK_C):
+	cd $(PICORUBY_NRF52_DIR) && $(MAKE) default
+
+$(LIBMRUBY_FILE):
+	cd $(PICORUBY_DIR) && MRUBY_CONFIG=$(abspath $(PICORUBY_NRF52_DIR)/build_config/nrf52.rb) rake
+
+$(FIRMWARE_OUT): $(MAIN_TASK_C) $(LIBMRUBY_FILE) $(OBJECTS) | $(BUILD_DIR)
 	$(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $@
 	$(SIZE) $@
 
