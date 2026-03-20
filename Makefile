@@ -6,8 +6,12 @@ SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
 BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
-PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
-PICORUBY_NRF52_ROOT ?= $(abspath $(ROOT)/../picoruby-nRF52)
+PICORUBY_NRF52_DIR := $(ROOT)/components/picoruby-nRF52
+PICORUBY_DIR := $(PICORUBY_NRF52_DIR)/picoruby
+GENERATED_MRB_DIR := $(PICORUBY_NRF52_DIR)/_build/mrb
+MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
+LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52/lib/libmruby.a
+
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
@@ -16,7 +20,9 @@ CC := $(GNU_PREFIX)-gcc
 OBJCOPY := $(GNU_PREFIX)-objcopy
 SIZE := $(GNU_PREFIX)-size
 
-include $(PICORUBY_NRF52_ROOT)/build_config/nrf52-sdk.mk
+# Manually define SDK and other paths, as the included .mk files are problematic
+NRF5_SDK_ROOT := $(PICORUBY_NRF52_DIR)/nrf52/sdk/nRF5_SDK_17.1.0_ddde560
+LINKER_SCRIPT := $(PICORUBY_NRF52_DIR)/linker/nrf52840.ld
 include $(BUILD_CONFIG_DIR)/$(BOARD).mk
 
 OBJ_DIR := $(BUILD_DIR)/obj
@@ -25,9 +31,7 @@ FIRMWARE_HEX := $(BUILD_DIR)/firmware.hex
 FIRMWARE_BIN := $(BUILD_DIR)/firmware.bin
 FIRMWARE_UF2 := $(BUILD_DIR)/firmware.uf2
 SDK_ROOT := $(NRF5_SDK_ROOT)
-LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
-SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
-STARTUP_SRC := $(NRF52_STARTUP_SRC)
+STARTUP_SRC := $(SDK_ROOT)/modules/nrfx/mdk/gcc_startup_nrf52840.S
 
 SRC_FILES := \
 	$(SRC_DIR)/main.c \
@@ -36,6 +40,7 @@ SRC_FILES := \
 	$(SRC_DIR)/usb_device.c \
 	$(SRC_DIR)/usb_runtime.c \
 	$(STARTUP_SRC) \
+	$(PICORUBY_NRF52_DIR)/ports/nrf52/hal/hal.c \
 	$(SDK_ROOT)/components/libraries/util/app_error.c \
 	$(SDK_ROOT)/components/libraries/util/app_error_handler_gcc.c \
 	$(SDK_ROOT)/components/libraries/util/app_error_weak.c \
@@ -61,6 +66,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
 	$(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_clock.c \
 	$(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_power.c \
+	$(SDK_ROOT)/integration/nrfx/legacy/nrf_drv_uart.c \
 	$(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd/nrf_nvic.c \
 	$(SDK_ROOT)/components/drivers_nrf/nrf_soc_nosd/nrf_soc.c \
 	$(SDK_ROOT)/modules/nrfx/soc/nrfx_atomic.c \
@@ -68,13 +74,21 @@ SRC_FILES := \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_power.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uart.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_uarte.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_usbd.c \
 	$(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 	$(SDK_ROOT)/external/utf_converter/utf.c
 
 INC_DIRS := \
 	$(INCLUDE_DIR) \
-	$(SDK_CONFIG_DIR) \
+	$(GENERATED_MRB_DIR) \
+	$(PICORUBY_NRF52_DIR) \
+	$(PICORUBY_DIR)/mrbgems/picoruby-mrubyc/lib/mrubyc/src \
+	$(PICORUBY_NRF52_DIR)/ports/nrf52/hal \
+	$(PICORUBY_DIR)/mrbgems/picoruby-mruby/lib/mruby/include \
+	$(PICORUBY_DIR)/build/nrf52/include \
+	$(PICORUBY_NRF52_DIR)/config \
 	$(SDK_ROOT)/components \
 	$(SDK_ROOT)/components/libraries/timer \
 	$(SDK_ROOT)/components/libraries/util \
@@ -156,7 +170,7 @@ LDFLAGS := \
 	-L$(SDK_ROOT)/modules/nrfx/mdk \
 	-T$(LINKER_SCRIPT)
 
-LDLIBS := -lc -lnosys -lm
+LDLIBS := $(LIBMRUBY_FILE) -lc -lnosys -lm
 
 define object_path
 $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
