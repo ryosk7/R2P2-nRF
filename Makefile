@@ -4,14 +4,13 @@ ROOT := $(abspath .)
 BUILD_DIR := $(ROOT)/build/$(BOARD)
 SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
-MRBLIB_DIR := $(ROOT)/mrblib
 BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
 PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
 PICORUBY_NRF52_ROOT ?= $(abspath $(ROOT)/../picoruby-nRF52)
 PICORUBY_DIR := $(PICORUBY_NRF52_ROOT)/picoruby
 GENERATED_MRB_DIR := $(BUILD_DIR)/mrb
-MAIN_TASK_RB := $(MRBLIB_DIR)/main_task.rb
+MAIN_TASK_RB := $(PICORUBY_NRF52_ROOT)/mrblib/main_task.rb
 MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
 PICORBC := $(PICORUBY_DIR)/bin/picorbc
 MRUBY_CONFIG := $(PICORUBY_NRF52_ROOT)/build_config/nrf52.rb
@@ -183,7 +182,7 @@ endef
 OBJECTS := $(foreach src,$(SRC_FILES),$(call object_path,$(src)))
 DEPS := $(OBJECTS:.o=.d)
 
-.PHONY: build-cdc-dual clean
+.PHONY: build-cdc-dual clean FORCE
 
 build-cdc-dual: $(FIRMWARE_UF2)
 
@@ -202,8 +201,8 @@ $(OBJ_DIR):
 $(GENERATED_MRB_DIR):
 	mkdir -p $(GENERATED_MRB_DIR)
 
-$(MAIN_TASK_C): $(MAIN_TASK_RB) $(LIBMRUBY_FILE) | $(GENERATED_MRB_DIR)
-	$(PICORBC) -Bmain_task -o$(abspath $@) $(abspath $<)
+$(MAIN_TASK_C): FORCE $(MAIN_TASK_RB) $(LIBMRUBY_FILE) | $(GENERATED_MRB_DIR)
+	$(PICORBC) -Bmain_task -o$(abspath $@) $(abspath $(MAIN_TASK_RB))
 
 $(LIBMRUBY_FILE):
 	cd $(PICORUBY_DIR) && MRUBY_CONFIG=$(abspath $(MRUBY_CONFIG)) rake
