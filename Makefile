@@ -4,10 +4,18 @@ ROOT := $(abspath .)
 BUILD_DIR := $(ROOT)/build/$(BOARD)
 SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
+MRBLIB_DIR := $(ROOT)/mrblib
 BUILD_CONFIG_DIR := $(ROOT)/build_config
 COMPONENTS_DIR := $(ROOT)/components
 PICORUBY_NRF52_DIR := $(COMPONENTS_DIR)/picoruby-nRF52
 PICORUBY_NRF52_ROOT ?= $(abspath $(ROOT)/../picoruby-nRF52)
+PICORUBY_DIR := $(PICORUBY_NRF52_ROOT)/picoruby
+GENERATED_MRB_DIR := $(BUILD_DIR)/mrb
+MAIN_TASK_RB := $(MRBLIB_DIR)/main_task.rb
+MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
+PICORBC := $(PICORUBY_DIR)/bin/picorbc
+MRUBY_CONFIG := $(PICORUBY_NRF52_ROOT)/build_config/nrf52.rb
+LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52/lib/libmruby.a
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
@@ -31,10 +39,14 @@ STARTUP_SRC := $(NRF52_STARTUP_SRC)
 
 SRC_FILES := \
 	$(SRC_DIR)/main.c \
+	$(SRC_DIR)/hal.c \
+	$(SRC_DIR)/picoruby_platform_stubs.c \
+	$(SRC_DIR)/picoruby_runtime.c \
 	$(SRC_DIR)/serial_transport.c \
 	$(SRC_DIR)/usb_cdc_transport.c \
 	$(SRC_DIR)/usb_device.c \
 	$(SRC_DIR)/usb_runtime.c \
+	$(MAIN_TASK_C) \
 	$(STARTUP_SRC) \
 	$(SDK_ROOT)/components/libraries/util/app_error.c \
 	$(SDK_ROOT)/components/libraries/util/app_error_handler_gcc.c \
@@ -74,6 +86,11 @@ SRC_FILES := \
 
 INC_DIRS := \
 	$(INCLUDE_DIR) \
+	$(PICORUBY_DIR)/include \
+	$(PICORUBY_DIR)/mrbgems/picoruby-machine/include \
+	$(PICORUBY_DIR)/mrbgems/picoruby-io-console/include \
+	$(PICORUBY_DIR)/mrbgems/picoruby-require/include \
+	$(PICORUBY_DIR)/mrbgems/picoruby-mrubyc/lib/mrubyc/src \
 	$(SDK_CONFIG_DIR) \
 	$(SDK_ROOT)/components \
 	$(SDK_ROOT)/components/libraries/timer \
@@ -118,6 +135,7 @@ CPPFLAGS += \
 	-DR2P2_USB_HID=$(R2P2_USB_HID) \
 	-DR2P2_USB_MIDI=$(R2P2_USB_MIDI)
 CPPFLAGS += \
+	-DPICORB_VM_MRUBYC \
 	-DNRF52840_XXAA \
 	-DCONFIG_GPIO_AS_PINRESET \
 	-DFLOAT_ABI_HARD \
@@ -156,7 +174,7 @@ LDFLAGS := \
 	-L$(SDK_ROOT)/modules/nrfx/mdk \
 	-T$(LINKER_SCRIPT)
 
-LDLIBS := -lc -lnosys -lm
+LDLIBS := $(LIBMRUBY_FILE) -lc -lnosys -lm
 
 define object_path
 $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
@@ -180,6 +198,15 @@ $(BUILD_DIR):
 
 $(OBJ_DIR):
 	mkdir -p $(OBJ_DIR)
+
+$(GENERATED_MRB_DIR):
+	mkdir -p $(GENERATED_MRB_DIR)
+
+$(MAIN_TASK_C): $(MAIN_TASK_RB) $(LIBMRUBY_FILE) | $(GENERATED_MRB_DIR)
+	$(PICORBC) -Bmain_task -o$(abspath $@) $(abspath $<)
+
+$(LIBMRUBY_FILE):
+	cd $(PICORUBY_DIR) && MRUBY_CONFIG=$(abspath $(MRUBY_CONFIG)) rake
 
 define compile_rule
 $(call object_path,$(1)): $(1) | $(OBJ_DIR)

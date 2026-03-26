@@ -12,6 +12,7 @@ extern app_usbd_cdc_acm_t const m_r2p2_data_cdc_acm;
 typedef struct {
   bool connected;
   bool rx_pending;
+  bool tx_pending;
   uint8_t ring[R2P2_USB_RING_BUFFER_SIZE];
   size_t head;
   size_t tail;
@@ -108,6 +109,7 @@ void usb_cdc_transport_on_port_open(r2p2_usb_channel_t channel) {
 
   state->connected = true;
   state->rx_pending = false;
+  state->tx_pending = false;
   schedule_read(channel);
 }
 
@@ -116,6 +118,7 @@ void usb_cdc_transport_on_port_close(r2p2_usb_channel_t channel) {
 
   state->connected = false;
   state->rx_pending = false;
+  state->tx_pending = false;
   ring_reset(state);
 }
 
@@ -128,7 +131,7 @@ void usb_cdc_transport_on_rx_done(r2p2_usb_channel_t channel) {
 }
 
 void usb_cdc_transport_on_tx_done(r2p2_usb_channel_t channel) {
-  (void)channel;
+  channel_state(channel)->tx_pending = false;
 }
 
 bool usb_cdc_transport_channel_connected(r2p2_usb_channel_t channel) {
@@ -141,14 +144,45 @@ bool usb_cdc_transport_any_connected(void) {
 }
 
 size_t usb_cdc_transport_write(r2p2_usb_channel_t channel, const uint8_t *data, size_t length) {
-  ret_code_t ret;
+  cdc_channel_state_t *state = channel_state(channel);
+  size_t written = 0;
 
   if (!usb_cdc_transport_channel_connected(channel)) {
     return 0;
   }
 
-  ret = app_usbd_cdc_acm_write(channel_instance(channel), data, length);
-  return ret == NRF_SUCCESS ? length : 0;
+  while (written < length && state->connected) {
+    size_t chunk = length - written;
+    ret_code_t ret;
+
+    if (chunk > 64) {
+      chunk = 64;
+    }
+
+    while (state->tx_pending && state->connected) {
+      app_usbd_event_queue_process();
+    }
+
+    ret = app_usbd_cdc_acm_write(channel_instance(channel), data + written, chunk);
+    if (ret == NRF_SUCCESS) {
+      state->tx_pending = true;
+      written += chunk;
+      continue;
+    }
+
+    if (ret == NRF_ERROR_BUSY || ret == NRF_ERROR_IO_PENDING) {
+      app_usbd_event_queue_process();
+      continue;
+    }
+
+    break;
+  }
+
+  while (state->tx_pending && state->connected) {
+    app_usbd_event_queue_process();
+  }
+
+  return written;
 }
 
 size_t usb_cdc_transport_bytes_available(r2p2_usb_channel_t channel) {
