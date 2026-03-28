@@ -187,9 +187,9 @@ endef
 OBJECTS := $(foreach src,$(SRC_FILES),$(call object_path,$(src)))
 DEPS := $(OBJECTS:.o=.d)
 
-.PHONY: build-cdc-dual clean FORCE
+.PHONY: build clean FORCE
 
-build-cdc-dual: $(FIRMWARE_UF2)
+build: $(FIRMWARE_UF2)
 
 ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
 $(error nRF5 SDK not found at $(SDK_ROOT). Place $(NRF5_SDK_VERSION) under $(PICORUBY_NRF52_ROOT)/nrf52/sdk/)
