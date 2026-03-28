@@ -10,6 +10,7 @@
 #include "r2p2_config.h"
 #include "serial_transport.h"
 #include "usb_cdc_transport.h"
+#include "usb_msc_storage.h"
 
 static void usbd_user_ev_handler(app_usbd_event_type_t event) {
   switch (event) {
@@ -67,6 +68,7 @@ void r2p2_usb_init(void) {
   }
 
   usb_cdc_transport_init();
+  usb_msc_storage_init();
   app_usbd_serial_num_generate();
 
   ret = app_usbd_init(&usbd_config);
@@ -77,6 +79,11 @@ void r2p2_usb_init(void) {
 
   if (R2P2_USB_CDC_DATA_ENABLED_DEFAULT) {
     ret = app_usbd_class_append(usb_cdc_transport_data_class());
+    APP_ERROR_CHECK(ret);
+  }
+
+  if (R2P2_USB_MSC) {
+    ret = app_usbd_class_append(usb_msc_storage_class());
     APP_ERROR_CHECK(ret);
   }
 

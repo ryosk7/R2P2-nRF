@@ -44,6 +44,7 @@ SRC_FILES := \
 	$(SRC_DIR)/serial_transport.c \
 	$(SRC_DIR)/usb_cdc_transport.c \
 	$(SRC_DIR)/usb_device.c \
+	$(SRC_DIR)/usb_msc_storage.c \
 	$(SRC_DIR)/usb_runtime.c \
 	$(MAIN_TASK_C) \
 	$(STARTUP_SRC) \
@@ -57,6 +58,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/usbd/app_usbd_serial_num.c \
 	$(SDK_ROOT)/components/libraries/usbd/app_usbd_string_desc.c \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc/acm/app_usbd_cdc_acm.c \
+	$(SDK_ROOT)/components/libraries/usbd/class/msc/app_usbd_msc.c \
 	$(SDK_ROOT)/components/libraries/util/app_util_platform.c \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c \
 	$(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c \
@@ -67,6 +69,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/memobj/nrf_memobj.c \
 	$(SDK_ROOT)/components/libraries/queue/nrf_queue.c \
 	$(SDK_ROOT)/components/libraries/ringbuf/nrf_ringbuf.c \
+	$(SDK_ROOT)/components/libraries/block_dev/empty/nrf_block_dev_empty.c \
 	$(SDK_ROOT)/components/libraries/experimental_section_vars/nrf_section_iter.c \
 	$(SDK_ROOT)/components/libraries/sortlist/nrf_sortlist.c \
 	$(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
@@ -99,7 +102,10 @@ INC_DIRS := \
 	$(SDK_ROOT)/components/libraries/usbd \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc/acm \
+	$(SDK_ROOT)/components/libraries/usbd/class/msc \
 	$(SDK_ROOT)/components/libraries/balloc \
+	$(SDK_ROOT)/components/libraries/block_dev \
+	$(SDK_ROOT)/components/libraries/block_dev/empty \
 	$(SDK_ROOT)/components/libraries/ringbuf \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52 \
 	$(SDK_ROOT)/components/libraries/hardfault \
