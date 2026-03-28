@@ -1,8 +1,8 @@
 #include "r2p2_nrf52_usb.h"
 #include "mrubyc.h"
+#include "picoruby_runtime.h"
 
 extern const uint8_t main_task[];
-bool r2p2_picoruby_init_puts_path(mrbc_vm *vm);
 
 int main(void) {
   static const char usb_boot_banner[] = "[r2p2] usb console open\r\n";
@@ -45,7 +45,7 @@ int main(void) {
       r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE,
         (const uint8_t *)puts_init_banner,
         sizeof(puts_init_banner) - 1);
-      if (!r2p2_picoruby_init_puts_path(&main_tcb->vm)) {
+      if (!r2p2_picoruby_init_runtime(&main_tcb->vm)) {
         static const char init_failed[] = "picoruby puts init failed\r\n";
         r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE,
           (const uint8_t *)init_failed,
