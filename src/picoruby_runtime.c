@@ -10,6 +10,7 @@
 #include "nrf.h"
 #include "nrf_delay.h"
 #include "platform.h"
+#include "picoruby_runtime.h"
 #include "r2p2_nrf52_usb.h"
 
 void picoruby_init_require(mrbc_vm *vm);
@@ -22,7 +23,7 @@ static void runtime_debug(const char *text) {
   r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)text, strlen(text));
 }
 
-bool r2p2_picoruby_init_puts_path(mrbc_vm *vm) {
+bool r2p2_picoruby_init_runtime(mrbc_vm *vm) {
   runtime_debug("[r2p2] picoruby_init_require begin\r\n");
   picoruby_init_require(vm);
   runtime_debug("[r2p2] picoruby_init_require done\r\n");
