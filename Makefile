@@ -44,6 +44,7 @@ SRC_FILES := \
 	$(SRC_DIR)/serial_transport.c \
 	$(SRC_DIR)/usb_cdc_transport.c \
 	$(SRC_DIR)/usb_device.c \
+	$(SRC_DIR)/usb_msc_storage.c \
 	$(SRC_DIR)/usb_runtime.c \
 	$(MAIN_TASK_C) \
 	$(STARTUP_SRC) \
@@ -57,6 +58,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/usbd/app_usbd_serial_num.c \
 	$(SDK_ROOT)/components/libraries/usbd/app_usbd_string_desc.c \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc/acm/app_usbd_cdc_acm.c \
+	$(SDK_ROOT)/components/libraries/usbd/class/msc/app_usbd_msc.c \
 	$(SDK_ROOT)/components/libraries/util/app_util_platform.c \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c \
 	$(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c \
@@ -80,6 +82,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_usbd.c \
+	$(SDK_ROOT)/modules/nrfx/hal/nrf_nvmc.c \
 	$(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 	$(SDK_ROOT)/external/utf_converter/utf.c
 
@@ -99,7 +102,9 @@ INC_DIRS := \
 	$(SDK_ROOT)/components/libraries/usbd \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc/acm \
+	$(SDK_ROOT)/components/libraries/usbd/class/msc \
 	$(SDK_ROOT)/components/libraries/balloc \
+	$(SDK_ROOT)/components/libraries/block_dev \
 	$(SDK_ROOT)/components/libraries/ringbuf \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52 \
 	$(SDK_ROOT)/components/libraries/hardfault \
@@ -204,7 +209,7 @@ $(GENERATED_MRB_DIR):
 $(MAIN_TASK_C): FORCE $(MAIN_TASK_RB) $(LIBMRUBY_FILE) | $(GENERATED_MRB_DIR)
 	$(PICORBC) -Bmain_task -o$(abspath $@) $(abspath $(MAIN_TASK_RB))
 
-$(LIBMRUBY_FILE):
+$(LIBMRUBY_FILE): $(MRUBY_CONFIG)
 	cd $(PICORUBY_DIR) && MRUBY_CONFIG=$(abspath $(MRUBY_CONFIG)) rake
 
 define compile_rule
