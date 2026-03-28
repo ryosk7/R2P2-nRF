@@ -69,7 +69,6 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/memobj/nrf_memobj.c \
 	$(SDK_ROOT)/components/libraries/queue/nrf_queue.c \
 	$(SDK_ROOT)/components/libraries/ringbuf/nrf_ringbuf.c \
-	$(SDK_ROOT)/components/libraries/block_dev/empty/nrf_block_dev_empty.c \
 	$(SDK_ROOT)/components/libraries/experimental_section_vars/nrf_section_iter.c \
 	$(SDK_ROOT)/components/libraries/sortlist/nrf_sortlist.c \
 	$(SDK_ROOT)/components/libraries/strerror/nrf_strerror.c \
@@ -83,6 +82,7 @@ SRC_FILES := \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/prs/nrfx_prs.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_systick.c \
 	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_usbd.c \
+	$(SDK_ROOT)/modules/nrfx/hal/nrf_nvmc.c \
 	$(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 	$(SDK_ROOT)/external/utf_converter/utf.c
 
@@ -105,7 +105,6 @@ INC_DIRS := \
 	$(SDK_ROOT)/components/libraries/usbd/class/msc \
 	$(SDK_ROOT)/components/libraries/balloc \
 	$(SDK_ROOT)/components/libraries/block_dev \
-	$(SDK_ROOT)/components/libraries/block_dev/empty \
 	$(SDK_ROOT)/components/libraries/ringbuf \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52 \
 	$(SDK_ROOT)/components/libraries/hardfault \
