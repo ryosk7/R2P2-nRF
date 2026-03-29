@@ -148,7 +148,7 @@ CPPFLAGS += \
 
 CFLAGS := \
 	-std=gnu11 \
-	-O2 \
+	-Os \
 	-g3 \
 	-mcpu=cortex-m4 \
 	-mthumb \
