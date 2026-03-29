@@ -6,6 +6,7 @@
 
 enum {
   HAL_STDIN_BUFFER_SIZE = 128,
+  HAL_STDOUT_BUFFER_SIZE = 128,
 };
 
 #ifndef MRBC_TICK_UNIT
@@ -68,8 +69,36 @@ void hal_idle_cpu(void) {
 
 int hal_write(int fd, const void *buf, int nbytes) {
   (void)fd;
-  r2p2_usb_task();
-  return (int)r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)buf, (size_t)nbytes);
+  const uint8_t *src = (const uint8_t *)buf;
+  uint8_t outbuf[HAL_STDOUT_BUFFER_SIZE];
+  int written = 0;
+
+  while (written < nbytes) {
+    size_t outlen = 0;
+
+    while (written < nbytes && outlen < sizeof(outbuf)) {
+      uint8_t ch = src[written++];
+      if (ch == '\n') {
+        if (outlen + 2 > sizeof(outbuf)) {
+          written--;
+          break;
+        }
+        outbuf[outlen++] = '\r';
+        outbuf[outlen++] = '\n';
+      } else {
+        outbuf[outlen++] = ch;
+      }
+    }
+
+    if (outlen == 0) {
+      break;
+    }
+
+    r2p2_usb_task();
+    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, outbuf, outlen);
+  }
+
+  return nbytes;
 }
 
 int hal_flush(int fd) {
