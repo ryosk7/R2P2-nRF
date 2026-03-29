@@ -68,8 +68,31 @@ void hal_idle_cpu(void) {
 
 int hal_write(int fd, const void *buf, int nbytes) {
   (void)fd;
-  r2p2_usb_task();
-  return (int)r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)buf, (size_t)nbytes);
+  const uint8_t *src = (const uint8_t *)buf;
+  static const uint8_t crlf[] = "\r\n";
+  int start = 0;
+
+  for (int i = 0; i < nbytes; i++) {
+    if (src[i] != '\n') {
+      continue;
+    }
+
+    if (start < i) {
+      r2p2_usb_task();
+      r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, &src[start], (size_t)(i - start));
+    }
+
+    r2p2_usb_task();
+    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, crlf, sizeof(crlf) - 1);
+    start = i + 1;
+  }
+
+  if (start < nbytes) {
+    r2p2_usb_task();
+    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, &src[start], (size_t)(nbytes - start));
+  }
+
+  return nbytes;
 }
 
 int hal_flush(int fd) {
