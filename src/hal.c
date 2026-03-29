@@ -1,14 +1,28 @@
 #include "hal.h"
 #include "r2p2_nrf52_usb.h"
+#include "app_error.h"
+#include "app_timer.h"
 #include "nrf.h"
 
 enum {
   HAL_STDIN_BUFFER_SIZE = 128,
 };
 
+#ifndef MRBC_TICK_UNIT
+#define MRBC_TICK_UNIT 10
+#endif
+
 static uint8_t hal_stdin_buffer[HAL_STDIN_BUFFER_SIZE];
 static uint16_t hal_stdin_head;
 static uint16_t hal_stdin_tail;
+static bool hal_tick_timer_started;
+
+APP_TIMER_DEF(hal_tick_timer);
+
+static void hal_tick_timer_handler(void *context) {
+  (void)context;
+  mrbc_tick();
+}
 
 static bool hal_stdin_empty(void) {
   return hal_stdin_head == hal_stdin_tail;
@@ -19,7 +33,25 @@ static bool hal_stdin_full(void) {
 }
 
 void hal_init(void) {
-  /* USB is initialized in main before hal_init. Nothing to do here. */
+  if (hal_tick_timer_started) {
+    return;
+  }
+
+  ret_code_t ret = app_timer_create(&hal_tick_timer,
+    APP_TIMER_MODE_REPEATED,
+    hal_tick_timer_handler);
+  if (ret != NRF_SUCCESS && ret != NRF_ERROR_INVALID_STATE) {
+    APP_ERROR_CHECK(ret);
+  }
+
+  ret = app_timer_start(hal_tick_timer,
+    APP_TIMER_TICKS(MRBC_TICK_UNIT),
+    NULL);
+  if (ret != NRF_SUCCESS && ret != NRF_ERROR_INVALID_STATE) {
+    APP_ERROR_CHECK(ret);
+  }
+
+  hal_tick_timer_started = true;
 }
 
 void hal_enable_irq(void) {
