@@ -6,7 +6,6 @@
 
 enum {
   HAL_STDIN_BUFFER_SIZE = 128,
-  HAL_STDOUT_BUFFER_SIZE = 128,
 };
 
 #ifndef MRBC_TICK_UNIT
@@ -70,32 +69,27 @@ void hal_idle_cpu(void) {
 int hal_write(int fd, const void *buf, int nbytes) {
   (void)fd;
   const uint8_t *src = (const uint8_t *)buf;
-  uint8_t outbuf[HAL_STDOUT_BUFFER_SIZE];
-  int written = 0;
+  static const uint8_t crlf[] = "\r\n";
+  int start = 0;
 
-  while (written < nbytes) {
-    size_t outlen = 0;
-
-    while (written < nbytes && outlen < sizeof(outbuf)) {
-      uint8_t ch = src[written++];
-      if (ch == '\n') {
-        if (outlen + 2 > sizeof(outbuf)) {
-          written--;
-          break;
-        }
-        outbuf[outlen++] = '\r';
-        outbuf[outlen++] = '\n';
-      } else {
-        outbuf[outlen++] = ch;
-      }
+  for (int i = 0; i < nbytes; i++) {
+    if (src[i] != '\n') {
+      continue;
     }
 
-    if (outlen == 0) {
-      break;
+    if (start < i) {
+      r2p2_usb_task();
+      r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, &src[start], (size_t)(i - start));
     }
 
     r2p2_usb_task();
-    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, outbuf, outlen);
+    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, crlf, sizeof(crlf) - 1);
+    start = i + 1;
+  }
+
+  if (start < nbytes) {
+    r2p2_usb_task();
+    r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, &src[start], (size_t)(nbytes - start));
   }
 
   return nbytes;
