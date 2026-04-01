@@ -71,11 +71,6 @@ void Machine_busy_wait_us(uint32_t us) {
   nrf_delay_us(us);
 }
 
-bool Machine_get_unique_id(char *id_str) {
-  (void)id_str;
-  return false;
-}
-
 void Machine_tud_task(void) {
   r2p2_usb_task();
 }
