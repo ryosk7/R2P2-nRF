@@ -16,8 +16,6 @@
 void picoruby_init_require(mrbc_vm *vm);
 
 volatile int sigint_status = MACHINE_SIG_NONE;
-static bool io_echo_enabled = true;
-static bool io_raw_enabled;
 
 static void runtime_debug(const char *text) {
   r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)text, strlen(text));
@@ -122,28 +120,4 @@ void Machine_uptime_formatted(char *buf, int maxlen) {
   if (maxlen > 0) {
     snprintf(buf, (size_t)maxlen, "%02u:%02u:%02u", hours, minutes, secs);
   }
-}
-
-void io_raw_bang(bool nonblock) {
-  (void)nonblock;
-  io_raw_enabled = true;
-}
-
-void io_cooked_bang(void) {
-  io_raw_enabled = false;
-}
-
-bool io_raw_q(void) {
-  return io_raw_enabled;
-}
-
-void io_echo_eq(bool flag) {
-  io_echo_enabled = flag;
-}
-
-bool io_echo_q(void) {
-  return io_echo_enabled;
-}
-
-void io__restore_termios(void) {
 }
