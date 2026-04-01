@@ -60,6 +60,8 @@ SRC_FILES := \
 	$(SDK_ROOT)/components/libraries/usbd/class/cdc/acm/app_usbd_cdc_acm.c \
 	$(SDK_ROOT)/components/libraries/usbd/class/msc/app_usbd_msc.c \
 	$(SDK_ROOT)/components/libraries/util/app_util_platform.c \
+	$(SDK_ROOT)/components/libraries/fstorage/nrf_fstorage.c \
+	$(SDK_ROOT)/components/libraries/fstorage/nrf_fstorage_nvmc.c \
 	$(SDK_ROOT)/components/libraries/hardfault/nrf52/handler/hardfault_handler_gcc.c \
 	$(SDK_ROOT)/components/libraries/hardfault/hardfault_implementation.c \
 	$(SDK_ROOT)/components/libraries/util/nrf_assert.c \
