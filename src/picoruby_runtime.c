@@ -77,24 +77,6 @@ bool Machine_tud_mounted_q(void) {
   return r2p2_usb_channel_connected(R2P2_USB_CHANNEL_CONSOLE);
 }
 
-uint32_t Machine_stack_usage(void) {
-  return 0;
-}
-
-bool Machine_set_hwclock(const struct timespec *ts) {
-  (void)ts;
-  return false;
-}
-
-bool Machine_get_hwclock(struct timespec *ts) {
-  if (ts == NULL) {
-    return false;
-  }
-  ts->tv_sec = 0;
-  ts->tv_nsec = 0;
-  return false;
-}
-
 void Machine_exit(int status) {
   (void)status;
   while (1) {
