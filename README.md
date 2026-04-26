@@ -44,7 +44,7 @@ $ ls /Volumes/"R2P2 NRF52"
 ## Supported Environment
 
 - **Build OS**: macOS
-- **Device**: [SSCI ISP1807 Dev Board](https://www.switch-science.com/products/6794) (nRF52840)
+- **Device**: [SSCI ISP1807 Dev Board](https://www.switch-science.com/products/6100) (nRF52840)
 
 ## License
 
