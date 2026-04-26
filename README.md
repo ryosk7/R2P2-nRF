@@ -1,4 +1,4 @@
-# R2P2-nRF52
+# R2P2-nRF
 
 This project runs [R2P2](https://github.com/picoruby/R2P2) (Ruby Rapid Portable Platform) on nRF52840.
 It uses [picoruby-nRF](https://github.com/ryosk7/picoruby-nRF), a component to run [PicoRuby](https://github.com/picoruby/picoruby) on nRF52.
@@ -15,13 +15,13 @@ It uses [picoruby-nRF](https://github.com/ryosk7/picoruby-nRF), a component to r
 ### Setup
 
 ```sh
-$ git clone --recursive https://github.com/ryosk7/R2P2-nRF52.git
+$ git clone --recursive https://github.com/ryosk7/R2P2-nRF.git
 ```
 
 ### Build
 
 ```sh
-$ cd R2P2-nRF52
+$ cd R2P2-nRF
 $ make build
 ```
 
@@ -48,4 +48,4 @@ $ ls /Volumes/"R2P2 NRF52"
 
 ## License
 
-[R2P2-nRF52](https://github.com/ryosk7/R2P2-nRF52) is released under the [MIT License](https://github.com/ryosk7/R2P2-nRF52/blob/master/LICENSE).
+[R2P2-nRF](https://github.com/ryosk7/R2P2-nRF) is released under the [MIT License](https://github.com/ryosk7/R2P2-nRF/blob/master/LICENSE).
