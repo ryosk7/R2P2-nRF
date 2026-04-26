@@ -1,7 +1,7 @@
 # R2P2-nRF52
 
 This project runs [R2P2](https://github.com/picoruby/R2P2) (Ruby Rapid Portable Platform) on nRF52840.
-It uses [picoruby-nRF52](https://github.com/ryosk7/picoruby-nRF52), a component to run [PicoRuby](https://github.com/picoruby/picoruby) on nRF52.
+It uses [picoruby-nRF](https://github.com/ryosk7/picoruby-nRF), a component to run [PicoRuby](https://github.com/picoruby/picoruby) on nRF52.
 
 ## Getting Started
 
@@ -10,7 +10,7 @@ It uses [picoruby-nRF52](https://github.com/ryosk7/picoruby-nRF52), a component 
 - `arm-none-eabi-gcc`, `arm-none-eabi-objcopy`, `arm-none-eabi-size`
 - Ruby and `rake`
 - Nordic nRF5 SDK 17.1.0 placed at:
-  `components/picoruby-nRF52/nrf52/sdk/nRF5_SDK_17.1.0_ddde560`
+  `components/picoruby-nRF/nrf52/sdk/nRF5_SDK_17.1.0_ddde560`
 
 ### Setup
 
