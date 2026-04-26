@@ -31,13 +31,13 @@ $ make build
 2. Copy `build/ssci_isp1807_dev_board/firmware.uf2` onto the mounted UF2 boot volume.
 3. The board reboots and re-enumerates over USB.
 
-### Verify
+### Connect
+
+Open [https://picoruby.org/terminal](https://picoruby.org/terminal) in a WebSerial-compatible browser (e.g. Chrome or Edge), then click **Connect** and select the board's USB serial port.
+
+You can also verify the USB MSC volume:
 
 ```sh
-# USB CDC console
-$ screen /dev/cu.usbmodem0000000000001 115200
-
-# USB MSC volume
 $ ls /Volumes/"R2P2 NRF52"
 ```
 
