@@ -12,5 +12,8 @@ end
 
 desc "Flash the current UF2 to NRF52BOOT"
 task :flash do
-  sh "cp -X build/ssci_isp1807_dev_board/firmware.uf2 /Volumes/NRF52BOOT/"
+  board = ENV.fetch("BOARD", "ssci_isp1807_dev_board")
+  uf2 = Dir.glob("build/#{board}/*.uf2").first
+  abort "No .uf2 found under build/#{board}/" unless uf2
+  sh "cp -X #{uf2} /Volumes/NRF52BOOT/"
 end

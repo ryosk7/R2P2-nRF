@@ -1,4 +1,11 @@
 BOARD ?= ssci_isp1807_dev_board
+VM    ?= MRUBYC
+
+VERSION   := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+BUILDDATE := $(shell date +%Y%m%d)
+REVISION  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)-$(VERSION)-$(BUILDDATE)-$(REVISION)
 
 ROOT := $(abspath .)
 BUILD_DIR := $(ROOT)/build/$(BOARD)
@@ -28,10 +35,10 @@ include $(BUILD_CONFIG_DIR)/$(BOARD).mk
 include $(PICORUBY_NRF52_ROOT)/build_config/picoruby-nrf52-ports.mk
 
 OBJ_DIR := $(BUILD_DIR)/obj
-FIRMWARE_OUT := $(BUILD_DIR)/firmware.out
-FIRMWARE_HEX := $(BUILD_DIR)/firmware.hex
-FIRMWARE_BIN := $(BUILD_DIR)/firmware.bin
-FIRMWARE_UF2 := $(BUILD_DIR)/firmware.uf2
+FIRMWARE_OUT := $(BUILD_DIR)/$(PROJECT_NAME).out
+FIRMWARE_HEX := $(BUILD_DIR)/$(PROJECT_NAME).hex
+FIRMWARE_BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin
+FIRMWARE_UF2 := $(BUILD_DIR)/$(PROJECT_NAME).uf2
 SDK_ROOT := $(NRF5_SDK_ROOT)
 LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
 SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
