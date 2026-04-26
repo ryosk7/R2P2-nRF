@@ -25,6 +25,7 @@ SIZE := $(GNU_PREFIX)-size
 
 include $(PICORUBY_NRF52_ROOT)/build_config/nrf52-sdk.mk
 include $(BUILD_CONFIG_DIR)/$(BOARD).mk
+include $(PICORUBY_NRF52_ROOT)/build_config/picoruby-nrf52-ports.mk
 
 OBJ_DIR := $(BUILD_DIR)/obj
 FIRMWARE_OUT := $(BUILD_DIR)/firmware.out
@@ -36,7 +37,9 @@ LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
 SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
 STARTUP_SRC := $(NRF52_STARTUP_SRC)
 
-SRC_FILES := \
+SRC_FILES := $(PICORUBY_NRF52_PORT_SRCS)
+
+SRC_FILES += \
 	$(SRC_DIR)/main.c \
 	$(SRC_DIR)/hal.c \
 	$(SRC_DIR)/picoruby_platform_stubs.c \
@@ -88,7 +91,9 @@ SRC_FILES := \
 	$(SDK_ROOT)/modules/nrfx/mdk/system_nrf52840.c \
 	$(SDK_ROOT)/external/utf_converter/utf.c
 
-INC_DIRS := \
+INC_DIRS := $(PICORUBY_NRF52_PORT_INCS)
+
+INC_DIRS += \
 	$(INCLUDE_DIR) \
 	$(PICORUBY_DIR)/include \
 	$(PICORUBY_DIR)/mrbgems/picoruby-machine/include \
