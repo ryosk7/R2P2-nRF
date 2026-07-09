@@ -32,7 +32,7 @@ static bool hal_stdin_full(void) {
   return (uint16_t)(hal_stdin_head + 1u) % HAL_STDIN_BUFFER_SIZE == hal_stdin_tail;
 }
 
-void hal_init(void) {
+void mrbc_hal_init(void) {
   if (hal_tick_timer_started) {
     return;
   }
@@ -54,19 +54,19 @@ void hal_init(void) {
   hal_tick_timer_started = true;
 }
 
-void hal_enable_irq(void) {
+void mrbc_hal_enable_irq(void) {
   __enable_irq();
 }
 
-void hal_disable_irq(void) {
+void mrbc_hal_disable_irq(void) {
   __disable_irq();
 }
 
-void hal_idle_cpu(void) {
+void mrbc_hal_idle_cpu(void) {
   __WFE();
 }
 
-int hal_write(int fd, const void *buf, int nbytes) {
+int mrbc_hal_write(int fd, const void *buf, int nbytes) {
   (void)fd;
   const uint8_t *src = (const uint8_t *)buf;
   static const uint8_t crlf[] = "\r\n";
@@ -95,12 +95,12 @@ int hal_write(int fd, const void *buf, int nbytes) {
   return nbytes;
 }
 
-int hal_flush(int fd) {
+int mrbc_hal_flush(int fd) {
   (void)fd;
   return 0;
 }
 
-void hal_abort(const char *s) {
+void mrbc_hal_abort(const char *s) {
   (void)s;
   while (1) {
     r2p2_usb_task();
@@ -117,7 +117,7 @@ int hal_read_available(void) {
   return r2p2_usb_bytes_available(R2P2_USB_CHANNEL_CONSOLE) > 0 ? 1 : 0;
 }
 
-int hal_getchar(void) {
+int picorb_hal_getchar(void) {
   if (!hal_stdin_empty()) {
     uint8_t ch = hal_stdin_buffer[hal_stdin_tail];
     hal_stdin_tail = (uint16_t)(hal_stdin_tail + 1u) % HAL_STDIN_BUFFER_SIZE;
