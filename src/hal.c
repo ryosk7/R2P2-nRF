@@ -117,7 +117,7 @@ int hal_read_available(void) {
   return r2p2_usb_bytes_available(R2P2_USB_CHANNEL_CONSOLE) > 0 ? 1 : 0;
 }
 
-int hal_getchar(void) {
+int picorb_hal_getchar(void) {
   if (!hal_stdin_empty()) {
     uint8_t ch = hal_stdin_buffer[hal_stdin_tail];
     hal_stdin_tail = (uint16_t)(hal_stdin_tail + 1u) % HAL_STDIN_BUFFER_SIZE;
