@@ -46,6 +46,14 @@ STARTUP_SRC := $(NRF52_STARTUP_SRC)
 
 SRC_FILES := $(PICORUBY_NRF52_PORT_SRCS)
 
+ifeq ($(NRF52_THREAD),1)
+# Referenced by OpenThread's platform layer: nrf_ecb for AES-ECB in the
+# radio driver's security path, nrfx_nvmc for its settings storage.
+SRC_FILES += \
+	$(SDK_ROOT)/modules/nrfx/hal/nrf_ecb.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nvmc.c
+endif
+
 SRC_FILES += \
 	$(SRC_DIR)/main.c \
 	$(SRC_DIR)/hal.c \
@@ -142,6 +150,12 @@ INC_DIRS += \
 	$(SDK_ROOT)/external/utf_converter
 
 CPPFLAGS := $(addprefix -I,$(INC_DIRS))
+ifeq ($(NRF52_THREAD),1)
+# Must mirror build_config/nrf52.rb: picoruby-irq/include/irq.h derives
+# PICORB_IRQ_EVENT_BRIDGE from this, and the rake half and this half would
+# otherwise disagree about the enum it gates.
+CPPFLAGS += -DMRBC_TASK_SCHEDULER_HOOK=1 -DNRF52_THREAD_ENABLED=1
+endif
 CPPFLAGS += \
 	-DR2P2_USB_VENDOR_ID=$(R2P2_USB_VENDOR_ID) \
 	-DR2P2_USB_PRODUCT_ID=$(R2P2_USB_PRODUCT_ID) \
@@ -198,7 +212,14 @@ LDFLAGS := \
 	-L$(SDK_ROOT)/modules/nrfx/mdk \
 	-T$(LINKER_SCRIPT)
 
-LDLIBS := $(LIBMRUBY_FILE) -lc -lnosys -lm
+LDLIBS := $(LIBMRUBY_FILE)
+ifeq ($(NRF52_THREAD),1)
+# --start-group is required, not tidiness: the 802.15.4 radio driver
+# references otRandomNonCryptoGetUint32 from libopenthread-mtd.a, which
+# appears earlier on the line, and a single pass leaves it undefined.
+LDLIBS += -Wl,--start-group $(OPENTHREAD_LIBS) -Wl,--end-group
+endif
+LDLIBS += -lc -lnosys -lm
 
 define object_path
 $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
