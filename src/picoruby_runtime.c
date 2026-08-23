@@ -122,12 +122,7 @@ uint64_t Machine_uptime_us(void) {
   return ((uint64_t)ticks * 1000000u * (APP_TIMER_CONFIG_RTC_FREQUENCY + 1u)) / APP_TIMER_CLOCK_FREQ;
 }
 
-void Machine_uptime_formatted(char *buf, int maxlen) {
-  uint64_t seconds = Machine_uptime_us() / 1000000u;
-  unsigned hours = (unsigned)(seconds / 3600u);
-  unsigned minutes = (unsigned)((seconds / 60u) % 60u);
-  unsigned secs = (unsigned)(seconds % 60u);
-  if (maxlen > 0) {
-    snprintf(buf, (size_t)maxlen, "%02u:%02u:%02u", hours, minutes, secs);
-  }
-}
+/* Machine_uptime_formatted comes from picoruby's
+ * picoruby-machine/ports/common/machine.c, which every other platform
+ * already shares. Defining it here shadowed that with an nRF-only
+ * "HH:MM:SS" and dropped the day and centisecond fields. */
