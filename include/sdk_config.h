@@ -11,6 +11,14 @@
 #define NRF_LOG_DEFAULT_LEVEL 0
 #endif
 
+/* OpenThread's flash driver (flash_nosd.c) calls nrfx_nvmc directly for
+   its settings storage. Guarded so a build without Thread is unchanged. */
+#if defined(NRF52_THREAD_ENABLED)
+#ifndef NRFX_NVMC_ENABLED
+#define NRFX_NVMC_ENABLED 1
+#endif
+#endif
+
 #ifndef NRFX_PRS_ENABLED
 #define NRFX_PRS_ENABLED 1
 #endif

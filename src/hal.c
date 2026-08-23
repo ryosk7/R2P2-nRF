@@ -1,4 +1,7 @@
 #include "hal.h"
+#if defined(NRF52_THREAD_ENABLED)
+#include "openthread_glue.h"
+#endif
 #include "r2p2_nrf52_usb.h"
 #include "app_error.h"
 #include "app_timer.h"
@@ -82,7 +85,28 @@ void mrbc_hal_disable_irq(void) {
   __disable_irq();
 }
 
+/*
+ * Idle.
+ *
+ * SEVONPEND is set once, in main(): without it the event register is
+ * only written by SEV or by actually taking an exception, so an
+ * interrupt that becomes pending while masked -- between the check
+ * below and the WFE -- would not wake the core, and the stall would
+ * last until the next 10 ms tick. For a radio meeting 802.15.4 timing
+ * that is not a rounding error.
+ *
+ * With Thread built in, the stack is pumped once more here as well as
+ * from the scheduler hook: the hook only runs while a Ruby task is
+ * runnable, and a node with nothing to do would otherwise stop
+ * servicing the radio.
+ */
 void mrbc_hal_idle_cpu(void) {
+#if defined(NRF52_THREAD_ENABLED)
+  OT_process();
+  if (OT_work_pending()) {
+    return;
+  }
+#endif
   /*
    * WFE, then SEV and WFE to clear -- the order nrf_pwr_mgmt uses.
    *
