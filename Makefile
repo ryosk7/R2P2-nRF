@@ -223,6 +223,14 @@ $(GENERATED_MRB_DIR):
 $(MAIN_TASK_C): FORCE $(MAIN_TASK_RB) $(LIBMRUBY_FILE) | $(GENERATED_MRB_DIR)
 	$(PICORBC) -Bmain_task -o$(abspath $@) $(abspath $(MAIN_TASK_RB))
 
+# Always ask rake, never guess.
+#
+# This used to depend on $(MRUBY_CONFIG) alone, which meant a change to
+# any gem source -- mrblib, src/, a new gem -- left a stale libmruby.a in
+# place and the link failed on symbols that plainly existed in the tree.
+# rake already tracks those inputs; the Makefile's job is to run it, not
+# to decide whether it needs to.
+.PHONY: $(LIBMRUBY_FILE)
 $(LIBMRUBY_FILE): $(MRUBY_CONFIG)
 	cd $(PICORUBY_DIR) && MRUBY_CONFIG=$(abspath $(MRUBY_CONFIG)) rake
 
