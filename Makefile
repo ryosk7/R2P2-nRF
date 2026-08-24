@@ -8,7 +8,13 @@ REVISION  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)-$(VERSION)-$(BUILDDATE)-$(REVISION)
 
 ROOT := $(abspath .)
-BUILD_DIR := $(ROOT)/build/$(BOARD)
+# The variant is part of the path, not just of the compiler flags: the
+# two configurations disagree about MRBC_TASK_SCHEDULER_HOOK, which
+# picoruby-irq/include/irq.h turns into PICORB_IRQ_EVENT_BRIDGE, so
+# sharing an object directory produces a silently mismatched image
+# rather than a rebuild.
+NRF52_VARIANT := $(if $(filter 1,$(NRF52_THREAD)),-thread)
+BUILD_DIR := $(ROOT)/build/$(BOARD)$(NRF52_VARIANT)
 SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
 BUILD_CONFIG_DIR := $(ROOT)/build_config
@@ -21,7 +27,7 @@ MAIN_TASK_RB := $(PICORUBY_NRF52_ROOT)/mrblib/main_task.rb
 MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
 PICORBC := $(PICORUBY_DIR)/bin/mrbc
 MRUBY_CONFIG := $(PICORUBY_NRF52_ROOT)/build_config/nrf52.rb
-LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52/lib/libmruby.a
+LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52$(NRF52_VARIANT)/lib/libmruby.a
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
