@@ -242,6 +242,12 @@ ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
 $(error nRF5 SDK not found at $(SDK_ROOT). Place $(NRF5_SDK_VERSION) under $(PICORUBY_NRF52_ROOT)/nrf52/sdk/)
 endif
 
+ifeq ($(NRF52_THREAD),1)
+ifeq ($(wildcard $(OPENTHREAD_LIB_DIR)/libopenthread-mtd.a),)
+$(error OpenThread not built at $(OPENTHREAD_LIB_DIR). Run: make openthread-setup)
+endif
+endif
+
 
 
 $(BUILD_DIR):
@@ -286,6 +292,37 @@ $(FIRMWARE_BIN): $(FIRMWARE_OUT)
 
 $(FIRMWARE_UF2): $(FIRMWARE_HEX)
 	ruby $(ROOT)/tools/uf2conv.rb -c -f $(R2P2_UF2_FAMILY) -o $@ $<
+
+# ot-nrf528xx is a git clone plus a cmake build, so unlike the nRF5 SDK --
+# which needs a licence click and stays a manual placement -- it can be
+# reproduced here. The option set is the one the firmware is sized for:
+# MTD only, and every feature that would drag in DTLS turned off. Turning
+# OT_JOINER back on alone costs roughly 30 mbedtls_ssl_* symbols.
+OPENTHREAD_REPO ?= https://github.com/openthread/ot-nrf528xx.git
+OPENTHREAD_REF  ?= main
+
+.PHONY: openthread-setup
+openthread-setup:
+	@command -v cmake >/dev/null || { echo "cmake is required"; exit 1; }
+	@command -v ninja >/dev/null || { echo "ninja is required"; exit 1; }
+	if [ ! -d "$(OPENTHREAD_ROOT)/.git" ]; then \
+	  git clone --recursive -b $(OPENTHREAD_REF) $(OPENTHREAD_REPO) "$(OPENTHREAD_ROOT)"; \
+	else \
+	  git -C "$(OPENTHREAD_ROOT)" submodule update --init --recursive; \
+	fi
+	cmake -S "$(OPENTHREAD_ROOT)" -B "$(OPENTHREAD_BUILD)" -G Ninja \
+	  -DNRF_PLATFORM=nrf52840 \
+	  -DCMAKE_TOOLCHAIN_FILE="$(OPENTHREAD_ROOT)/src/nrf52840/arm-none-eabi.cmake" \
+	  -DCMAKE_BUILD_TYPE=MinSizeRel \
+	  -DOT_PLATFORM=external \
+	  -DOT_MTD=ON -DOT_FTD=OFF -DOT_RCP=OFF \
+	  -DOT_APP_CLI=OFF -DOT_APP_NCP=OFF -DOT_APP_RCP=OFF \
+	  -DOT_JOINER=OFF -DOT_COMMISSIONER=OFF -DOT_COAP=OFF -DOT_COAPS=OFF \
+	  -DOT_DNS_CLIENT=OFF -DOT_DHCP6_CLIENT=OFF -DOT_ECDSA=OFF \
+	  -DOT_SRP_CLIENT=OFF -DOT_TCP=OFF -DOT_BORDER_AGENT=OFF \
+	  -DOT_LOG_OUTPUT=NONE
+	cmake --build "$(OPENTHREAD_BUILD)"
+	@echo "OpenThread ready at $(OPENTHREAD_LIB_DIR)"
 
 clean:
 	rm -rf $(BUILD_DIR)
