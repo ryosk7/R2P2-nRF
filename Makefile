@@ -45,6 +45,11 @@ FIRMWARE_OUT := $(BUILD_DIR)/$(PROJECT_NAME).out
 FIRMWARE_HEX := $(BUILD_DIR)/$(PROJECT_NAME).hex
 FIRMWARE_BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin
 FIRMWARE_UF2 := $(BUILD_DIR)/$(PROJECT_NAME).uf2
+# A single image carrying the SoftDevice as well as the firmware, for
+# getting back from a Thread build. See the recovery target below.
+RECOVERY_HEX := $(BUILD_DIR)/$(PROJECT_NAME)-recovery.hex
+RECOVERY_UF2 := $(BUILD_DIR)/$(PROJECT_NAME)-recovery.uf2
+SOFTDEVICE_HEX ?= $(ROOT)/tmp/isp1807_breakout_bootloader-0.6.3-58-g34cd2d2_s140_6.1.1.hex
 SDK_ROOT := $(NRF5_SDK_ROOT)
 LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
 SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
@@ -323,6 +328,28 @@ openthread-setup:
 	  -DOT_LOG_OUTPUT=NONE
 	cmake --build "$(OPENTHREAD_BUILD)"
 	@echo "OpenThread ready at $(OPENTHREAD_LIB_DIR)"
+
+# Recovery image: SoftDevice + firmware in one UF2.
+#
+# Only meaningful for the non-Thread build -- the Thread firmware has no
+# SoftDevice by design. Needed because the way back from a Thread image
+# is not "flash the old .uf2": that erased the SoftDevice, so the
+# bootloader starts the app at MBR_SIZE where the Thread vector table
+# still sits. Restoring the SoftDevice alone does not help either,
+# because the UF2 path marks the stale application bank valid. The two
+# must arrive together, converted in one pass -- concatenating two .uf2
+# files does not work, the bootloader invalidates numBlocks when it sees
+# a second value.
+.PHONY: recovery
+recovery: $(RECOVERY_UF2)
+
+$(RECOVERY_UF2): $(FIRMWARE_HEX) $(SOFTDEVICE_HEX)
+ifeq ($(NRF52_THREAD),1)
+	$(error recovery is for the non-Thread build; run without NRF52_THREAD=1)
+endif
+	ruby $(ROOT)/tools/merge_sd_hex.rb $(SOFTDEVICE_HEX) $(FIRMWARE_HEX) $(RECOVERY_HEX)
+	ruby $(ROOT)/tools/uf2conv.rb -c -f $(R2P2_UF2_FAMILY) -o $@ $(RECOVERY_HEX)
+	@echo "Recovery image: $@"
 
 clean:
 	rm -rf $(BUILD_DIR)
