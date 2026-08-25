@@ -34,7 +34,28 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_r2p2_data_cdc_acm,
   NRF_DRV_USBD_EPOUT3,
   APP_USBD_CDC_COMM_PROTOCOL_AT_V250);
 
+/*
+ * Ask the bootloader for UF2 mode on the next boot.
+ *
+ * 0x57 is DFU_MAGIC_UF2_RESET (Adafruit bootloader, src/main.c). Its
+ * path there brings up USB CDC+MSC and never touches the SoftDevice, so
+ * it is the only magic safe on this board: the Thread build erases the
+ * SoftDevice, and both OTA magics (0xA8, 0xB1) call ble_stack_init()
+ * unguarded and would execute application bytes as a SoftDevice. That
+ * branch also takes the 3-second enumeration timeout, so a board on
+ * battery falls back to the application instead of sitting in DFU.
+ *
+ * GPREGRET is written directly: the firmware links nrf_soc_nosd and no
+ * SoftDevice is ever enabled, so sd_power_gpregret_set does not apply.
+ *
+ * Note the double-reset cell the bootloader uses for the two-tap route
+ * is a different mechanism and is not reachable from here -- it requires
+ * RESETREAS.RESETPIN, which a software reset does not set.
+ */
+#define R2P2_DFU_MAGIC_UF2_RESET 0x57
+
 __attribute__((weak)) void r2p2_reset_to_bootloader(void) {
+  NRF_POWER->GPREGRET = R2P2_DFU_MAGIC_UF2_RESET;
   NVIC_SystemReset();
 }
 

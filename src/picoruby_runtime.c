@@ -21,10 +21,38 @@ static void runtime_debug(const char *text) {
   r2p2_usb_write(R2P2_USB_CHANNEL_CONSOLE, (const uint8_t *)text, strlen(text));
 }
 
+void r2p2_reset_to_bootloader(void);
+
+/*
+ * Machine.reset_to_bootloader
+ *
+ * Named for what it does rather than "dfu": picoruby already has a DFU
+ * gem, and that one swaps application slots in the filesystem -- it does
+ * not reflash the MCU. Conflating the two names would be the confusing
+ * choice.
+ *
+ * Defined from the product rather than from picoruby-machine because
+ * entering the bootloader is a board fact, not a chip fact: it depends
+ * on which bootloader is installed and which magic it honours. Reopening
+ * Machine here keeps picoruby untouched.
+ */
+static void c_machine_reset_to_bootloader(mrbc_vm *vm, mrbc_value *v, int argc) {
+  (void)v;
+  (void)argc;
+  r2p2_reset_to_bootloader();   /* does not return */
+  (void)vm;
+}
+
 bool r2p2_picoruby_init_runtime(mrbc_vm *vm) {
   runtime_debug("[r2p2] picoruby_init_require begin\r\n");
   picoruby_init_require(vm);
   runtime_debug("[r2p2] picoruby_init_require done\r\n");
+
+  mrbc_class *machine = mrbc_get_class_by_name("Machine");
+  if (machine != NULL) {
+    mrbc_define_method(vm, machine, "reset_to_bootloader",
+                       c_machine_reset_to_bootloader);
+  }
   return true;
 }
 
