@@ -25,12 +25,12 @@ FILE_sector_size(void)
 }
 
 /*
- * The wall clock lives in picoruby-machine's nRF52 port, on RTC2 with an
+ * The wall clock lives in picoruby-machine's nRF52 port, on RTC0 with an
  * epoch offset. Until something sets it -- NTP, a shell command, a value
- * from flash -- there is no wall clock to report, and uptime is the only
- * honest answer. Callers that care can tell the two apart by comparing
- * against a plausible epoch; callers that only measure intervals do not
- * need to.
+ * from flash -- Machine_get_hwclock reports failure, and uptime is the
+ * only honest answer left. Callers that care can tell the two apart by
+ * comparing against a plausible epoch; callers that only measure
+ * intervals do not need to.
  */
 int
 clock_gettime(clockid_t clk_id, struct timespec *tp)
