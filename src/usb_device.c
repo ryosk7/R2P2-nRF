@@ -37,20 +37,29 @@ APP_USBD_CDC_ACM_GLOBAL_DEF(m_r2p2_data_cdc_acm,
 /*
  * Ask the bootloader for UF2 mode on the next boot.
  *
- * 0x57 is DFU_MAGIC_UF2_RESET (Adafruit bootloader, src/main.c). Its
- * path there brings up USB CDC+MSC and never touches the SoftDevice, so
- * it is the only magic safe on this board: the Thread build erases the
- * SoftDevice, and both OTA magics (0xA8, 0xB1) call ble_stack_init()
- * unguarded and would execute application bytes as a SoftDevice. That
- * branch also takes the 3-second enumeration timeout, so a board on
- * battery falls back to the application instead of sitting in DFU.
+ * 0x57 is DFU_MAGIC_UF2_RESET (Adafruit bootloader, src/main.c:109). It
+ * takes the usb_init() branch and enumerates CDC+MSC, which is the
+ * drag-and-drop route this call exists to reach. The OTA magics -- 0xA8
+ * DFU_MAGIC_OTA_RESET and 0xB1 DFU_MAGIC_OTA_APPJUM -- instead take
  *
- * GPREGRET is written directly: the firmware links nrf_soc_nosd and no
- * SoftDevice is ever enabled, so sd_power_gpregret_set does not apply.
+ *     if (_ota_dfu) { if (!_sd_inited) mbr_init_sd(); ble_stack_init(); }
+ *
+ * and wait for a host speaking the BLE DFU protocol. Nothing here can
+ * satisfy that. 0x4e (serial only) and 0x6d (skip) are the remaining
+ * magics and are not what is wanted either.
+ *
+ * Worth knowing about the path we do take: uf2_dfu reaches
+ * bootloader_dfu_start(_ota_dfu, 3000, true), so if USB does not
+ * enumerate within three seconds -- a board on battery, say -- the
+ * bootloader restarts into the application rather than sitting in DFU.
+ *
+ * GPREGRET is written directly: the firmware links nrf_soc_nosd and
+ * never enables a SoftDevice, so sd_power_gpregret_set does not apply.
  *
  * Note the double-reset cell the bootloader uses for the two-tap route
  * is a different mechanism and is not reachable from here -- it requires
- * RESETREAS.RESETPIN, which a software reset does not set.
+ * RESETREAS.RESETPIN (src/main.c:255), which a software reset does not
+ * set.
  */
 #define R2P2_DFU_MAGIC_UF2_RESET 0x57
 
