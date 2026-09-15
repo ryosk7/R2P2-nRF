@@ -181,6 +181,10 @@ CFLAGS := \
 	-fno-builtin \
 	-fshort-enums
 
+# -u _printf_float: newlib-nano drops %f/%g from printf unless this symbol
+# is forced in. mrbc_format_float snprintf("%g")s every Float, so without
+# it every Float prints as ".0" -- the empty conversion, plus the ".0"
+# the formatter appends when it finds no '.' or 'e' in the result.
 LDFLAGS := \
 	-mcpu=cortex-m4 \
 	-mthumb \
@@ -189,6 +193,7 @@ LDFLAGS := \
 	-mfpu=fpv4-sp-d16 \
 	-Wl,--gc-sections \
 	-specs=nano.specs \
+	-u _printf_float \
 	-L$(SDK_ROOT)/modules/nrfx/mdk \
 	-T$(LINKER_SCRIPT)
 
