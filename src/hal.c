@@ -63,6 +63,20 @@ void mrbc_hal_disable_irq(void) {
 }
 
 void mrbc_hal_idle_cpu(void) {
+  /*
+   * SEV then two WFEs, not one.
+   *
+   * The event register is sticky and SEVONPEND makes almost anything set
+   * it -- the 10 ms tick, a USB SOF. A single WFE would consume whatever
+   * stale event was already recorded and return immediately, so the core
+   * would never actually sleep and would idle at run-mode current.
+   * Setting the event deliberately and consuming it with the first WFE
+   * clears the register; the second then sleeps until something
+   * genuinely new arrives, which is what SEVONPEND is here to guarantee
+   * cannot be missed.
+   */
+  __SEV();
+  __WFE();
   __WFE();
 }
 
