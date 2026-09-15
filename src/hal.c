@@ -19,9 +19,29 @@ static bool hal_tick_timer_started;
 
 APP_TIMER_DEF(hal_tick_timer);
 
+/*
+ * The USB pump's owner.
+ *
+ * app_usbd_event_queue_process() was reached only from paths a Ruby
+ * program has to actively take -- console read, console write, sleep.
+ * Any code that does not touch stdio (a compute loop, sleep 10) left the
+ * 32-entry event queue undrained while the host kept posting to it; MSC
+ * alone is enough with a mounted volume. app_usbd discards on overflow
+ * without telling anyone, and a lost RX_DONE wedges rx_pending, killing
+ * console input until reset.
+ *
+ * Servicing it from the 10 ms tick gives it one guaranteed owner. This
+ * runs in the app_timer handler -- thread level, not the USBD ISR --
+ * because APP_USBD_CONFIG_EVENT_QUEUE_ENABLE splits those contexts, so
+ * class callbacks still run where they always did. RP2040 solved the
+ * same problem with a low-priority pump IRQ plus a 1 ms backstop
+ * (picoruby-machine/ports/rp2040/machine.c); the tick is this part's
+ * equivalent backstop.
+ */
 static void hal_tick_timer_handler(void *context) {
   (void)context;
   mrbc_tick();
+  r2p2_usb_task();
 }
 
 static bool hal_stdin_empty(void) {
