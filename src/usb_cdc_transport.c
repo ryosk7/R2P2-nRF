@@ -4,7 +4,9 @@
 
 #include "app_usbd_cdc_acm.h"
 #include "app_util_platform.h"
+#include "app_timer.h"
 #include "r2p2_config.h"
+
 
 extern app_usbd_cdc_acm_t const m_r2p2_console_cdc_acm;
 extern app_usbd_cdc_acm_t const m_r2p2_data_cdc_acm;
@@ -24,6 +26,36 @@ static cdc_channel_state_t cdc_channels[2];
 
 static app_usbd_cdc_acm_t const *channel_instance(r2p2_usb_channel_t channel) {
   return channel == R2P2_USB_CHANNEL_CONSOLE ? &m_r2p2_console_cdc_acm : &m_r2p2_data_cdc_acm;
+}
+
+/*
+ * Bound the waits for a TX to complete.
+ *
+ * app_usbd drops events silently when its queue overflows (app_usbd.c
+ * logs and returns, and NRF_LOG_ENABLED is 0), and a lost TX_DONE leaves
+ * tx_pending set for good. Without a deadline the callers below spin
+ * forever and take the VM with them -- the same failure the RP2040 port
+ * bounded in picoruby-machine/ports/rp2040/machine.c. Giving up loses
+ * one write; hanging loses the board.
+ *
+ * app_timer_cnt_diff_compute rather than Machine_uptime_us: the RTC
+ * counter is 24-bit and wraps every ~512 s, and a naive comparison
+ * against a precomputed deadline would either fire instantly or never
+ * across that boundary.
+ */
+#define USB_TX_TIMEOUT_TICKS APP_TIMER_TICKS(500)
+
+static void usb_wait_tx_done(cdc_channel_state_t *state) {
+  uint32_t started = app_timer_cnt_get();
+
+  while (state->tx_pending && state->connected) {
+    app_usbd_event_queue_process();
+    if (app_timer_cnt_diff_compute(app_timer_cnt_get(), started)
+          >= USB_TX_TIMEOUT_TICKS) {
+      state->tx_pending = false;   /* the event is not coming */
+      break;
+    }
+  }
 }
 
 static cdc_channel_state_t *channel_state(r2p2_usb_channel_t channel) {
@@ -159,9 +191,7 @@ size_t usb_cdc_transport_write(r2p2_usb_channel_t channel, const uint8_t *data, 
       chunk = 64;
     }
 
-    while (state->tx_pending && state->connected) {
-      app_usbd_event_queue_process();
-    }
+    usb_wait_tx_done(state);
 
     ret = app_usbd_cdc_acm_write(channel_instance(channel), data + written, chunk);
     if (ret == NRF_SUCCESS) {
@@ -178,9 +208,7 @@ size_t usb_cdc_transport_write(r2p2_usb_channel_t channel, const uint8_t *data, 
     break;
   }
 
-  while (state->tx_pending && state->connected) {
-    app_usbd_event_queue_process();
-  }
+  usb_wait_tx_done(state);
 
   return written;
 }
