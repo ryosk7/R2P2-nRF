@@ -163,6 +163,13 @@
 #define NRF_FSTORAGE_ENABLED 1
 #endif
 
+// <q> NRFX_SAADC_ENABLED - nrfx_saadc - SAADC peripheral driver
+// picoruby-adc's nRF52 port reads through nrfx_saadc_sample_convert, which
+// is compiled out unless this is set.
+#ifndef NRFX_SAADC_ENABLED
+#define NRFX_SAADC_ENABLED 1
+#endif
+
 #ifndef RTC_ENABLED
 #define RTC_ENABLED 1
 #endif
