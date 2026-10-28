@@ -88,21 +88,15 @@ void mrbc_hal_disable_irq(void) {
 /*
  * Idle.
  *
- * SEVONPEND is set once, in main(): without it the event register is
- * only written by SEV or by actually taking an exception, so an
- * interrupt that becomes pending while masked -- between the check
- * below and the WFE -- would not wake the core, and the stall would
- * last until the next 10 ms tick. For a radio meeting 802.15.4 timing
- * that is not a rounding error.
- *
- * With Thread built in, the stack is pumped once more here as well as
- * from the scheduler hook: the hook only runs while a Ruby task is
- * runnable, and a node with nothing to do would otherwise stop
- * servicing the radio.
+ * With Thread built in, the stack itself is pumped from the scheduler
+ * hook, which mrbc_run calls on every pass, idle or not. What the hook
+ * cannot see is work OpenThread queued for itself from thread context:
+ * a tasklet posted while processing raises no interrupt and so sets no
+ * event, and sleeping here would leave it until the next tick. Return
+ * instead, and the next pass runs it.
  */
 void mrbc_hal_idle_cpu(void) {
 #if defined(NRF52_THREAD_ENABLED)
-  OT_process();
   if (OT_work_pending()) {
     return;
   }

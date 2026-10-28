@@ -1,7 +1,6 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include "nrf.h"
 #include "r2p2_nrf52_usb.h"
 #include "mrubyc.h"
 #include "picoruby_runtime.h"
@@ -74,14 +73,6 @@ int main(void) {
   uintptr_t heap_lo = ((uintptr_t)&end + 7u) & ~(uintptr_t)7u;
   uintptr_t heap_hi =
     ((uintptr_t)&_heap_end - R2P2_NEWLIB_HEAP_RESERVE) & ~(uintptr_t)7u;
-
-  /*
-   * Record pending interrupts in the event register even while they are
-   * masked, so mrbc_hal_idle_cpu's WFE cannot sleep through one that
-   * arrives between its last check and the instruction itself. Without
-   * this the miss costs a whole 10 ms tick.
-   */
-  SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
 
   r2p2_usb_init();
   while (1) {
