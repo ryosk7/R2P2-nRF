@@ -84,19 +84,21 @@ void mrbc_hal_disable_irq(void) {
 
 void mrbc_hal_idle_cpu(void) {
   /*
-   * SEV then two WFEs, not one.
+   * WFE, then SEV and WFE to clear -- the order nrf_pwr_mgmt uses.
    *
-   * The event register is sticky and SEVONPEND makes almost anything set
-   * it -- the 10 ms tick, a USB SOF. A single WFE would consume whatever
-   * stale event was already recorded and return immediately, so the core
-   * would never actually sleep and would idle at run-mode current.
-   * Setting the event deliberately and consuming it with the first WFE
-   * clears the register; the second then sleeps until something
-   * genuinely new arrives, which is what SEVONPEND is here to guarantee
-   * cannot be missed.
+   * mrbc_run checks the ready queue with interrupts enabled and then
+   * calls here, so an ISR can make a task ready in between. Its exception
+   * return sets the event register, and the first WFE must be the one
+   * that sees it: it then returns at once and the scheduler looks again.
+   * Clearing first (SEV; WFE; WFE) threw that event away and slept until
+   * the next interrupt, up to a whole 10 ms tick late.
+   *
+   * The trailing SEV; WFE leaves the register clear on the way out, so a
+   * stale event costs one extra pass through the scheduler rather than
+   * keeping the core from ever sleeping.
    */
-  __SEV();
   __WFE();
+  __SEV();
   __WFE();
 }
 
