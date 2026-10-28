@@ -5,15 +5,22 @@ VERSION   := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"
 BUILDDATE := $(shell date +%Y%m%d)
 REVISION  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)-$(VERSION)-$(BUILDDATE)-$(REVISION)
+# The variant is part of the path AND of the artefact name.
+#
+# Of the flags: the two configurations disagree about
+# MRBC_TASK_SCHEDULER_HOOK, which picoruby-irq/include/irq.h turns into
+# PICORB_IRQ_EVENT_BRIDGE, so sharing an object directory produces a
+# silently mismatched image rather than a rebuild.
+#
+# Of the name: the Thread image reclaims the SoftDevice region and
+# erases it on first flash, which is one-way. Two files that differ in
+# that respect must not be able to arrive with the same name -- a user
+# picking the wrong one has no way back without the recovery image.
+NRF52_VARIANT := $(if $(filter 1,$(NRF52_THREAD)),-thread)
+
+PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)$(NRF52_VARIANT)-$(VERSION)-$(BUILDDATE)-$(REVISION)
 
 ROOT := $(abspath .)
-# The variant is part of the path, not just of the compiler flags: the
-# two configurations disagree about MRBC_TASK_SCHEDULER_HOOK, which
-# picoruby-irq/include/irq.h turns into PICORB_IRQ_EVENT_BRIDGE, so
-# sharing an object directory produces a silently mismatched image
-# rather than a rebuild.
-NRF52_VARIANT := $(if $(filter 1,$(NRF52_THREAD)),-thread)
 BUILD_DIR := $(ROOT)/build/$(BOARD)$(NRF52_VARIANT)
 SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
