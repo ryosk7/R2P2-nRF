@@ -97,6 +97,23 @@ void mrbc_hal_idle_cpu(void) {
    * stale event costs one extra pass through the scheduler rather than
    * keeping the core from ever sleeping.
    */
+#if (__FPU_USED == 1)
+  /*
+   * nRF52840 anomaly 87: the FPU's cumulative exception flags in FPSCR
+   * keep FPU_IRQn pending, and a pending FPU_IRQn wakes WFE even though
+   * the vector is never enabled. mruby/c Float arithmetic sets IXC as a
+   * matter of course, so after the first Float the WFE below would
+   * return immediately on every pass and the core would idle at
+   * run-mode current. Cleared the way nrf_pwr_mgmt does it, under a
+   * mask so an ISR cannot set a flag between the read and the write.
+   */
+  uint32_t primask = __get_PRIMASK();
+  __disable_irq();
+  __set_FPSCR(__get_FPSCR() & ~0x9Fu);
+  __DMB();
+  NVIC_ClearPendingIRQ(FPU_IRQn);
+  __set_PRIMASK(primask);
+#endif
   __WFE();
   __SEV();
   __WFE();
