@@ -12,6 +12,9 @@
 #include "platform.h"
 #include "picoruby_runtime.h"
 #include "r2p2_nrf52_usb.h"
+#if defined(NRF52_THREAD_ENABLED)
+#include "openthread_glue.h"
+#endif
 
 void picoruby_init_require(mrbc_vm *vm);
 
@@ -62,10 +65,25 @@ bool r2p2_picoruby_init_runtime(mrbc_vm *vm) {
  * one would have kept winning and left RUBY_PLATFORM lowercase, which
  * sends bareword gets/getc down the POSIX path and into IO#fileno. */
 
+/*
+ * What a busy wait keeps alive. These loops never return to mrbc_run, so
+ * the scheduler hook that normally pumps OpenThread does not run for
+ * their whole length -- seconds, for Machine_sleep -- and the radio would
+ * go unserviced. USB is pumped here for the same reason.
+ */
+static void
+busy_wait_service(void)
+{
+  r2p2_usb_task();
+#if defined(NRF52_THREAD_ENABLED)
+  OT_process();
+#endif
+}
+
 void Machine_sleep(uint32_t seconds) {
   for (uint32_t i = 0; i < seconds; i++) {
     for (uint32_t j = 0; j < 100; j++) {
-      r2p2_usb_task();
+      busy_wait_service();
       nrf_delay_ms(10);
     }
   }
@@ -80,7 +98,7 @@ void Machine_deep_sleep(uint8_t gpio_pin, bool edge, bool high) {
 void Machine_delay_ms(uint32_t ms) {
   while (ms > 0) {
     uint32_t step = ms > 10 ? 10 : ms;
-    r2p2_usb_task();
+    busy_wait_service();
     nrf_delay_ms(step);
     ms -= step;
   }
@@ -91,7 +109,7 @@ void Machine_busy_wait_ms(uint32_t ms) {
 }
 
 void Machine_busy_wait_us(uint32_t us) {
-  r2p2_usb_task();
+  busy_wait_service();
   nrf_delay_us(us);
 }
 
