@@ -1,4 +1,3 @@
-#include "nrf.h"
 #include "r2p2_nrf52_usb.h"
 #include "mrubyc.h"
 #include "picoruby_runtime.h"
@@ -14,14 +13,6 @@ int main(void) {
   static const char run_banner[] = "[r2p2] mrbc run\r\n";
   bool console_banner_sent = false;
   static uint8_t heap_pool[1024 * 80] __attribute__((aligned(8)));
-
-  /*
-   * Record pending interrupts in the event register even while they are
-   * masked, so mrbc_hal_idle_cpu's WFE cannot sleep through one that
-   * arrives between its last check and the instruction itself. Without
-   * this the miss costs a whole 10 ms tick.
-   */
-  SCB->SCR |= SCB_SCR_SEVONPEND_Msk;
 
   r2p2_usb_init();
   while (1) {
