@@ -310,18 +310,26 @@ $(FIRMWARE_UF2): $(FIRMWARE_HEX)
 # reproduced here. The option set is the one the firmware is sized for:
 # MTD only, and every feature that would drag in DTLS turned off. Turning
 # OT_JOINER back on alone costs roughly 30 mbedtls_ssl_* symbols.
+#
+# Pinned to a commit, not a branch: the linker map and the flash budget
+# were measured against this tree, and OpenThread decides where its
+# settings live from its own source (src/src/flash.c), so a moving ref
+# can change what the firmware writes to flash without anything here
+# changing.
 OPENTHREAD_REPO ?= https://github.com/openthread/ot-nrf528xx.git
-OPENTHREAD_REF  ?= main
+OPENTHREAD_REF  ?= c1fe23b91fa423897da947f127a34be653702af8
 
 .PHONY: openthread-setup
 openthread-setup:
 	@command -v cmake >/dev/null || { echo "cmake is required"; exit 1; }
 	@command -v ninja >/dev/null || { echo "ninja is required"; exit 1; }
 	if [ ! -d "$(OPENTHREAD_ROOT)/.git" ]; then \
-	  git clone --recursive -b $(OPENTHREAD_REF) $(OPENTHREAD_REPO) "$(OPENTHREAD_ROOT)"; \
-	else \
-	  git -C "$(OPENTHREAD_ROOT)" submodule update --init --recursive; \
+	  git clone $(OPENTHREAD_REPO) "$(OPENTHREAD_ROOT)"; \
 	fi
+	git -C "$(OPENTHREAD_ROOT)" rev-parse -q --verify "$(OPENTHREAD_REF)^{commit}" >/dev/null || \
+	  git -C "$(OPENTHREAD_ROOT)" fetch origin
+	git -C "$(OPENTHREAD_ROOT)" checkout -q "$(OPENTHREAD_REF)"
+	git -C "$(OPENTHREAD_ROOT)" submodule update --init --recursive
 	cmake -S "$(OPENTHREAD_ROOT)" -B "$(OPENTHREAD_BUILD)" -G Ninja \
 	  -DNRF_PLATFORM=nrf52840 \
 	  -DCMAKE_TOOLCHAIN_FILE="$(OPENTHREAD_ROOT)/src/nrf52840/arm-none-eabi.cmake" \
