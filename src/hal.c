@@ -1,4 +1,7 @@
 #include "hal.h"
+#if defined(NRF52_THREAD_ENABLED)
+#include "openthread_glue.h"
+#endif
 #include "r2p2_nrf52_usb.h"
 #include "app_error.h"
 #include "app_timer.h"
@@ -82,7 +85,22 @@ void mrbc_hal_disable_irq(void) {
   __disable_irq();
 }
 
+/*
+ * Idle.
+ *
+ * With Thread built in, the stack itself is pumped from the scheduler
+ * hook, which mrbc_run calls on every pass, idle or not. What the hook
+ * cannot see is work OpenThread queued for itself from thread context:
+ * a tasklet posted while processing raises no interrupt and so sets no
+ * event, and sleeping here would leave it until the next tick. Return
+ * instead, and the next pass runs it.
+ */
 void mrbc_hal_idle_cpu(void) {
+#if defined(NRF52_THREAD_ENABLED)
+  if (OT_work_pending()) {
+    return;
+  }
+#endif
   /*
    * WFE, then SEV and WFE to clear -- the order nrf_pwr_mgmt uses.
    *

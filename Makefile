@@ -5,10 +5,23 @@ VERSION   := $(shell git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0"
 BUILDDATE := $(shell date +%Y%m%d)
 REVISION  := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
-PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)-$(VERSION)-$(BUILDDATE)-$(REVISION)
+# The variant is part of the path AND of the artefact name.
+#
+# Of the flags: the two configurations disagree about
+# MRBC_TASK_SCHEDULER_HOOK, which picoruby-irq/include/irq.h turns into
+# PICORB_IRQ_EVENT_BRIDGE, so sharing an object directory produces a
+# silently mismatched image rather than a rebuild.
+#
+# Of the name: the Thread image reclaims the SoftDevice region and
+# erases it on first flash, which is one-way. Two files that differ in
+# that respect must not be able to arrive with the same name -- a user
+# picking the wrong one has no way back without the recovery image.
+NRF52_VARIANT := $(if $(filter 1,$(NRF52_THREAD)),-thread)
+
+PROJECT_NAME := R2P2-nRF52-$(VM)-$(BOARD)$(NRF52_VARIANT)-$(VERSION)-$(BUILDDATE)-$(REVISION)
 
 ROOT := $(abspath .)
-BUILD_DIR := $(ROOT)/build/$(BOARD)
+BUILD_DIR := $(ROOT)/build/$(BOARD)$(NRF52_VARIANT)
 SRC_DIR := $(ROOT)/src
 INCLUDE_DIR := $(ROOT)/include
 BUILD_CONFIG_DIR := $(ROOT)/build_config
@@ -21,7 +34,7 @@ MAIN_TASK_RB := $(PICORUBY_NRF52_ROOT)/mrblib/main_task.rb
 MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
 PICORBC := $(PICORUBY_DIR)/bin/mrbc
 MRUBY_CONFIG := $(PICORUBY_NRF52_ROOT)/build_config/nrf52.rb
-LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52/lib/libmruby.a
+LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52$(NRF52_VARIANT)/lib/libmruby.a
 GNU_PREFIX ?= arm-none-eabi
 empty :=
 space := $(empty) $(empty)
@@ -39,12 +52,25 @@ FIRMWARE_OUT := $(BUILD_DIR)/$(PROJECT_NAME).out
 FIRMWARE_HEX := $(BUILD_DIR)/$(PROJECT_NAME).hex
 FIRMWARE_BIN := $(BUILD_DIR)/$(PROJECT_NAME).bin
 FIRMWARE_UF2 := $(BUILD_DIR)/$(PROJECT_NAME).uf2
+# A single image carrying the SoftDevice as well as the firmware, for
+# getting back from a Thread build. See the recovery target below.
+RECOVERY_HEX := $(BUILD_DIR)/$(PROJECT_NAME)-recovery.hex
+RECOVERY_UF2 := $(BUILD_DIR)/$(PROJECT_NAME)-recovery.uf2
+SOFTDEVICE_HEX ?= $(ROOT)/tmp/isp1807_breakout_bootloader-0.6.3-58-g34cd2d2_s140_6.1.1.hex
 SDK_ROOT := $(NRF5_SDK_ROOT)
 LINKER_SCRIPT := $(NRF52_LINKER_SCRIPT)
 SDK_CONFIG_DIR := $(NRF52_SDK_CONFIG_DIR)
 STARTUP_SRC := $(NRF52_STARTUP_SRC)
 
 SRC_FILES := $(PICORUBY_NRF52_PORT_SRCS)
+
+ifeq ($(NRF52_THREAD),1)
+# Referenced by OpenThread's platform layer: nrf_ecb for AES-ECB in the
+# radio driver's security path, nrfx_nvmc for its settings storage.
+SRC_FILES += \
+	$(SDK_ROOT)/modules/nrfx/hal/nrf_ecb.c \
+	$(SDK_ROOT)/modules/nrfx/drivers/src/nrfx_nvmc.c
+endif
 
 SRC_FILES += \
 	$(SRC_DIR)/main.c \
@@ -142,6 +168,12 @@ INC_DIRS += \
 	$(SDK_ROOT)/external/utf_converter
 
 CPPFLAGS := $(addprefix -I,$(INC_DIRS))
+ifeq ($(NRF52_THREAD),1)
+# Must mirror build_config/nrf52.rb: picoruby-irq/include/irq.h derives
+# PICORB_IRQ_EVENT_BRIDGE from this, and the rake half and this half would
+# otherwise disagree about the enum it gates.
+CPPFLAGS += -DMRBC_TASK_SCHEDULER_HOOK=1 -DNRF52_THREAD_ENABLED=1
+endif
 CPPFLAGS += \
 	-DR2P2_USB_VENDOR_ID=$(R2P2_USB_VENDOR_ID) \
 	-DR2P2_USB_PRODUCT_ID=$(R2P2_USB_PRODUCT_ID) \
@@ -198,7 +230,14 @@ LDFLAGS := \
 	-L$(SDK_ROOT)/modules/nrfx/mdk \
 	-T$(LINKER_SCRIPT)
 
-LDLIBS := $(LIBMRUBY_FILE) -lc -lnosys -lm
+LDLIBS := $(LIBMRUBY_FILE)
+ifeq ($(NRF52_THREAD),1)
+# --start-group is required, not tidiness: the 802.15.4 radio driver
+# references otRandomNonCryptoGetUint32 from libopenthread-mtd.a, which
+# appears earlier on the line, and a single pass leaves it undefined.
+LDLIBS += -Wl,--start-group $(OPENTHREAD_LIBS) -Wl,--end-group
+endif
+LDLIBS += -lc -lnosys -lm
 
 define object_path
 $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
@@ -213,6 +252,12 @@ build: $(FIRMWARE_UF2)
 
 ifeq ($(wildcard $(SDK_ROOT)/components/toolchain/gcc/Makefile.common),)
 $(error nRF5 SDK not found at $(SDK_ROOT). Place $(NRF5_SDK_VERSION) under $(PICORUBY_NRF52_ROOT)/nrf52/sdk/)
+endif
+
+ifeq ($(NRF52_THREAD),1)
+ifeq ($(wildcard $(OPENTHREAD_LIB_DIR)/libopenthread-mtd.a),)
+$(error OpenThread not built at $(OPENTHREAD_LIB_DIR). Run: make openthread-setup)
+endif
 endif
 
 
@@ -259,6 +304,67 @@ $(FIRMWARE_BIN): $(FIRMWARE_OUT)
 
 $(FIRMWARE_UF2): $(FIRMWARE_HEX)
 	ruby $(ROOT)/tools/uf2conv.rb -c -f $(R2P2_UF2_FAMILY) -o $@ $<
+
+# ot-nrf528xx is a git clone plus a cmake build, so unlike the nRF5 SDK --
+# which needs a licence click and stays a manual placement -- it can be
+# reproduced here. The option set is the one the firmware is sized for:
+# MTD only, and every feature that would drag in DTLS turned off. Turning
+# OT_JOINER back on alone costs roughly 30 mbedtls_ssl_* symbols.
+#
+# Pinned to a commit, not a branch: the linker map and the flash budget
+# were measured against this tree, and OpenThread decides where its
+# settings live from its own source (src/src/flash.c), so a moving ref
+# can change what the firmware writes to flash without anything here
+# changing.
+OPENTHREAD_REPO ?= https://github.com/openthread/ot-nrf528xx.git
+OPENTHREAD_REF  ?= c1fe23b91fa423897da947f127a34be653702af8
+
+.PHONY: openthread-setup
+openthread-setup:
+	@command -v cmake >/dev/null || { echo "cmake is required"; exit 1; }
+	@command -v ninja >/dev/null || { echo "ninja is required"; exit 1; }
+	if [ ! -d "$(OPENTHREAD_ROOT)/.git" ]; then \
+	  git clone $(OPENTHREAD_REPO) "$(OPENTHREAD_ROOT)"; \
+	fi
+	git -C "$(OPENTHREAD_ROOT)" rev-parse -q --verify "$(OPENTHREAD_REF)^{commit}" >/dev/null || \
+	  git -C "$(OPENTHREAD_ROOT)" fetch origin
+	git -C "$(OPENTHREAD_ROOT)" checkout -q "$(OPENTHREAD_REF)"
+	git -C "$(OPENTHREAD_ROOT)" submodule update --init --recursive
+	cmake -S "$(OPENTHREAD_ROOT)" -B "$(OPENTHREAD_BUILD)" -G Ninja \
+	  -DNRF_PLATFORM=nrf52840 \
+	  -DCMAKE_TOOLCHAIN_FILE="$(OPENTHREAD_ROOT)/src/nrf52840/arm-none-eabi.cmake" \
+	  -DCMAKE_BUILD_TYPE=MinSizeRel \
+	  -DOT_PLATFORM=external \
+	  -DOT_MTD=ON -DOT_FTD=OFF -DOT_RCP=OFF \
+	  -DOT_APP_CLI=OFF -DOT_APP_NCP=OFF -DOT_APP_RCP=OFF \
+	  -DOT_JOINER=OFF -DOT_COMMISSIONER=OFF -DOT_COAP=OFF -DOT_COAPS=OFF \
+	  -DOT_DNS_CLIENT=OFF -DOT_DHCP6_CLIENT=OFF -DOT_ECDSA=OFF \
+	  -DOT_SRP_CLIENT=OFF -DOT_TCP=OFF -DOT_BORDER_AGENT=OFF \
+	  -DOT_LOG_OUTPUT=NONE
+	cmake --build "$(OPENTHREAD_BUILD)"
+	@echo "OpenThread ready at $(OPENTHREAD_LIB_DIR)"
+
+# Recovery image: SoftDevice + firmware in one UF2.
+#
+# Only meaningful for the non-Thread build -- the Thread firmware has no
+# SoftDevice by design. Needed because the way back from a Thread image
+# is not "flash the old .uf2": that erased the SoftDevice, so the
+# bootloader starts the app at MBR_SIZE where the Thread vector table
+# still sits. Restoring the SoftDevice alone does not help either,
+# because the UF2 path marks the stale application bank valid. The two
+# must arrive together, converted in one pass -- concatenating two .uf2
+# files does not work, the bootloader invalidates numBlocks when it sees
+# a second value.
+.PHONY: recovery
+recovery: $(RECOVERY_UF2)
+
+$(RECOVERY_UF2): $(FIRMWARE_HEX) $(SOFTDEVICE_HEX)
+ifeq ($(NRF52_THREAD),1)
+	$(error recovery is for the non-Thread build; run without NRF52_THREAD=1)
+endif
+	ruby $(ROOT)/tools/merge_sd_hex.rb $(SOFTDEVICE_HEX) $(FIRMWARE_HEX) $(RECOVERY_HEX)
+	ruby $(ROOT)/tools/uf2conv.rb -c -f $(R2P2_UF2_FAMILY) -o $@ $(RECOVERY_HEX)
+	@echo "Recovery image: $@"
 
 clean:
 	rm -rf $(BUILD_DIR)
