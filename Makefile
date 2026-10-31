@@ -19,7 +19,7 @@ PICORUBY_DIR := $(PICORUBY_NRF52_ROOT)/picoruby
 GENERATED_MRB_DIR := $(BUILD_DIR)/mrb
 MAIN_TASK_RB := $(PICORUBY_NRF52_ROOT)/mrblib/main_task.rb
 MAIN_TASK_C := $(GENERATED_MRB_DIR)/main_task.c
-PICORBC := $(PICORUBY_DIR)/bin/mrbc
+PICORBC := $(PICORUBY_DIR)/build/mrbc/default/bin/mrbc
 MRUBY_CONFIG := $(PICORUBY_NRF52_ROOT)/build_config/nrf52.rb
 LIBMRUBY_FILE := $(PICORUBY_DIR)/build/nrf52/lib/libmruby.a
 GNU_PREFIX ?= arm-none-eabi
@@ -142,6 +142,8 @@ INC_DIRS += \
 	$(SDK_ROOT)/external/utf_converter
 
 CPPFLAGS := $(addprefix -I,$(INC_DIRS))
+# Must match FLASH_LFS in the linker scripts.
+CPPFLAGS += -DLFS_FLASH_TARGET_OFFSET=0x000C4000 -DLFS_FLASH_BLOCK_COUNT=48
 CPPFLAGS += \
 	-DR2P2_USB_VENDOR_ID=$(R2P2_USB_VENDOR_ID) \
 	-DR2P2_USB_PRODUCT_ID=$(R2P2_USB_PRODUCT_ID) \
@@ -205,6 +207,8 @@ $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
 endef
 
 OBJECTS := $(foreach src,$(SRC_FILES),$(call object_path,$(src)))
+# rake generates Prism's headers, which the port sources include.
+$(OBJECTS): | $(LIBMRUBY_FILE)
 DEPS := $(OBJECTS:.o=.d)
 
 .PHONY: build clean FORCE
