@@ -5,6 +5,7 @@
 #include "app_usbd.h"
 #include "app_usbd_core.h"
 #include "app_usbd_serial_num.h"
+#include "nrf_clock.h"
 #include "nrf_drv_clock.h"
 #include "nrf_drv_power.h"
 #include "r2p2_config.h"
@@ -47,6 +48,17 @@ void r2p2_usb_init(void) {
     .ev_state_proc = usbd_user_ev_handler,
     .enable_sof = false,
   };
+
+  /*
+   * A HFCLKSTARTED event left over from before this boot would be taken as
+   * our own start: nrfx_clock's handler reads the event without checking
+   * INTEN, so the first POWER_CLOCK interrupt -- the LFCLK request below
+   * raises one -- marks HFCLK on and every later request skips starting
+   * the crystal. The radio and USB then run from HFINT.
+   */
+  if (!nrf_clock_hf_is_running(NRF_CLOCK_HFCLK_HIGH_ACCURACY)) {
+    nrf_clock_event_clear(NRF_CLOCK_EVENT_HFCLKSTARTED);
+  }
 
   ret = nrf_drv_clock_init();
   if (ret != NRF_SUCCESS && ret != NRF_ERROR_MODULE_ALREADY_INITIALIZED) {
