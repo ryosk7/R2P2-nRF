@@ -207,7 +207,9 @@ $(OBJ_DIR)/$(subst /,_,$(basename $(1))).o
 endef
 
 OBJECTS := $(foreach src,$(SRC_FILES),$(call object_path,$(src)))
-# rake generates Prism's headers, which the port sources include.
+# rake generates Prism's headers, which the port sources include. Being
+# the first rule, this would otherwise become what a bare `make` builds.
+.DEFAULT_GOAL := build
 $(OBJECTS): | $(LIBMRUBY_FILE)
 DEPS := $(OBJECTS:.o=.d)
 
